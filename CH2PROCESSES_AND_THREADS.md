@@ -619,7 +619,7 @@ Dado que cada hilo puede acceder a cualquier dirección de memoria
 dentro del espacio de direcciones del proceso, un hilo puede leer, 
 escribir o incluso borrar la pila de otro hilo. No existe la protección
 entre hilos, dado que, es imposible y no debe ser necesario. Dado que a diferencia
-de los distitnos procesos, un solo proceso solo le pertenece a un usuario, quien 
+de los distintos procesos, un solo proceso solo le pertenece a un usuario, quien 
 puede crear multiples hilos de tal manera que ellos copeeren y no se saboteen.
 
 Además de compartir espacios de memoria, los hilos pueden compartir archivos
@@ -634,7 +634,7 @@ activamente y en conjunto entre sí.
 Los elementos de la primera columna son propiedades del proceso, 
 no del hilo. Por ejemplo, si un hilo abre un archivo, este file es 
 visible para lo otros hilos del proceso y ellos pueden leer y escribir en
-él. Esto es lógico dado que el procesa sería la unidad de manejo de recurso,
+él. Esto es lógico dado que el proceso sería la unidad de manejo de recurso,
 no el hilo. Si cada hilo tuviera su propia dirección de memoria, archivos
 abiertos, alarmas, pendiente, etc, estos serían procesos separados.
 Lo que queremos lograr con el concepto de thread , es la habilidad 
@@ -666,7 +666,7 @@ en ejecución, bloqueado, listo o terminado. Un hilo en ejecución está usando
 ![imagen2.13](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-13.png?raw=true)
 
 Cuando los multihilos están presentes, los procesos usualmente con un
-único hilo presente. Este hilo es capaz de crear a otros hilos llamando
+único hilo presente son capaces de crear a otros hilos llamando
 a la libreria de procesos *thread_create*. Un parámetro a thread 
 create especifica el nombre de un procedimiento para que el nuevo 
 hilo se ejecute. Si no es necesario(o no es posible) especificar nada
@@ -681,7 +681,7 @@ Cuando un hilo ha terminado su trabajo, puede salir llamando a un
 procedimiento de biblioteca, por ejemplo, thread exit. Entonces 
 desaparece y deja de ser programable. En algunos sistemas de hilos, 
 un hilo puede esperar la salida de otro hilo (específico) llamando a 
-un procedimiento, por ejemplo, thread join. Este procedimiento bloquea 
+un procedimiento, por ejemplo, *thread_join*. Este procedimiento bloquea 
 el hilo que llama hasta que un hilo (específico) haya salido. En este 
 sentido, la creación y terminación de hilos es muy parecida a la 
 creación y terminación de procesos.
@@ -707,8 +707,8 @@ call, desde el teclado? ¿Los 2 hilos deberían bloquear en el teclado?
 ambos hilos deberían obtener una copia de él? ¿Sólo el padre? ¿Sólo
 el hijo? El mismo problema existe con las conexiones de red abierta.
  
-Otro problema existe con el hecho de que los hilos varias estructuras de 
-datos. ¿Qué pas si un hilo cierra un archivo mientras otro lo está leyendo?
+Otro problema existe con el hecho de que los hilos comparten varias estructuras de 
+datos. ¿Qué pasa si un hilo cierra un archivo mientras otro lo está leyendo?
 Supongamos que un hilo notifica que hay muy poca memoria y comienza a 
 asignar más memoria. A mitad de camino, se produce un cambio de hilo, 
 y el nuevo hilo también se da cuenta de que hay muy poca memoria y 
@@ -735,7 +735,7 @@ elementos necesarios para utilizar el hilo.
 
 #### Thread calls
 
-Se pueden crear nuevos hilos con la llamada pthread_call. El identificador
+Se pueden crear nuevos hilos con la llamada *pthread_call*. El identificador
 del nuevo hilo creado is retornado como valor de la función. Esta 
 llamada es intencionadamente muy parecida a la llamada al sistema fork 
 (excepto con parámetros), con el identificador del hilo jugando el 
@@ -743,29 +743,29 @@ papel del PID, principalmente para identificar hilos referenciados en
 otras llamadas.
 
 Cuando un hilo ha terminado el trabajo al que fue asignado, este se puede
-terminar con la llamada pthread_exit. Esta llamada detiene el hilo y 
+terminar con la llamada *pthread_exit*. Esta llamada detiene el hilo y 
 libera su pila.
 
 Algunas veces un hilo necesita que otro hilo termine su trabajo y salga antes
-de poder continuar. El thread que está esperando llama a pthread_join 
+de poder continuar. El thread que está esperando llama a *pthread_join*
 para esperar que un thread específico termine. El identificador del
 hilo a esperar se da como parámetro.
 
 Aveces sucede que un hilo no está bloqueado lógicamente, pero este ya
 ha sido ejecutado suficiente tiempo y queremos que otro hilo se ejecute
-en vez de este. Esto se puede lograr con la call pthread_yield. No existe 
+en vez de este. Esto se puede lograr con la call *pthread_yield*. No existe 
 tal llamada para los procesos porque la suposición allí es que los 
 procesos son ferozmente competitivos y cada uno quiere todo el tiempo 
 de CPU que puede conseguir. De todos modos, los hilos de un proceso
 trabajan juntos y su código es escrito por el mismo programador, así que
 aveces el programador va a querer darle la oportunidad a un hilo de ejecutarse.
 
-Las 2 llamadas siguientes lidian con atributos. Pthread_attr_init crea la
+Las 2 llamadas siguientes lidian con atributos. *Pthread_attr_init* crea la
 estructura de atributos asociada a un hilo y la inicializa con los valores
 de default. Estos valores(como la prioridad) pueden ser cambiados manipulando
 los campos en la estructura del atributo.
 
-Finalmente, pthread_attr_destroy elimina una estructura de atributos de un hilo,
+Finalmente, *pthread_attr_destroy* elimina una estructura de atributos de un hilo,
 liberando su memoria. Esto no afecta a los hilos que la usen, estos siguen
 existiendo.
 
@@ -832,14 +832,14 @@ el nuevo hilo vuelve a la vida automáticamente. En caso la máquina tenga una i
 de hilo completo puede realizar con pocas instrucciones. Realizar cambios de hilos de esta forma es mucho más rápido que recurrir al núcleo y es un argumento
 a favor de los paquetes de hilo a nivel de usuario.
 
-Sin embargo, hay una diferencia clave con los procesos. Cuando un hilo finaliza momentáneamente, es decir cuando llama thread_yield, el código de thread_yield
+Sin embargo, hay una diferencia clave con los procesos. Cuando un hilo finaliza momentáneamente, es decir cuando llama *thread_yield*, el código de *thread_yield*
 puede guardar la información del hilo en la propia tabla de hilos. Además puede llamar al programador de hilos para elegir otro hilo que ejecutar. El 
 procedimiento que guarda el estado del hilo y el planificador son solo procedimientos locales, por lo que invocarlos es mucho más eficiente que
 hacer una llamada al núcleo. Entre otras cosas, no se necesita ningún trap, ningún cambio de contexto, no es necesario vaciar la caché de memoria, 
 etc. Esto hace que la programación de hilos sea muy rápida.
 
 Existen otras ventajas de trabajar con threads en el user space, estos permiten tener personalizados sus propios algoritmos de planificación. Para algunas aplicaciones
-por ejemplo, aquellas con un hilo garbage-collector, no tener que preocuparse de que un hilo se detenga en un momento inoportuno es una ventaja.
+por ejemplo, aquellas con un hilo garbage-collector. No tener que preocuparse de que un hilo se detenga en un momento inoportuno es una ventaja.
 
 ##### Desventajas
 
@@ -898,7 +898,7 @@ algunos gastos generales. También se pueden reciclar en el nivel de usuario, pe
 implementarlo.
 
 Los hilos del kernel no requieren nuevas llamadas al sistema no bloqueantes. Además si un hilo en un proceso causa un page fault, el kernel puede revisar si el proceso
-tiene otros hilos en ejecución y continuar ejecuntadolos mientras se espera para obtener la página requerida del disco. La desventaja de esto es el costo
+tiene otros hilos en ejecución y continuar ejecutandolos mientras se espera para obtener la página requerida del disco. La desventaja de esto es el costo
 que se tiene para el sistema, pues las operaciones de threads(creacion, terminacion, etc), se incurrirá en muchos más gastos generales.
 
 
@@ -953,7 +953,7 @@ otros hilos dentro del mismo proceso, si hay alguno listo.
 
 La eficiencia se logra al evitar transiciones necesarias entre el espacio
 de usuario y el espacio del kernel. Si un hilo se bloquea esperando a que 
-hilo realice algo, por ejemplo, no hay motivo para incluir al kernel, sabiendo 
+hilo realice algo, por ejemplo, //revisaaaa no hay motivo para incluir al kernel, sabiendo 
 sobre la sobrecarga del kernel-user transition. El sistema en ejecución del
 espacio de usuario puede bloquear el hilo de sincronización y programar
 uno nuevo por sí mismo.
@@ -1015,10 +1015,10 @@ Las upcalls ignoran este principio fundamental.
 ### 2.2.8 Pop-Up Threads
 
 Los hilos son útiles en sistemas distribuidos. Un ejemplo es
-como los mensajes entrantes por ejemplo, solicitudes para un servicio,
+como los mensajes entrantes(como las solicitudes para un servicio)
 son manejados. El enfoque principal es tener un proceso o hilo que esté 
 bloqueado en el receive system call esperando por un mensaje entrante.
-Cuando un mensaje llega, este lo recibe, lo lo desempaqueta, 
+Cuando un mensaje llega, este lo recibe, lo desempaqueta, 
 examina su contenido y lo procesa.
 
 Otro enfoque es que el receptor de mensajes provoque que el sistema
@@ -1093,6 +1093,7 @@ llamante tiene acceso a la variable global.
 
 Se necesitan 2 llamdas para acceder a la variable global, una para leer y otra para escribir.
 Para escribir una variable glogal se usa:
+
     set global("bufptr", &buf);
 Esto guarda el valor de un puntero el área anteriormente creada por create_global. 
 Para leer una variable global se usa:
