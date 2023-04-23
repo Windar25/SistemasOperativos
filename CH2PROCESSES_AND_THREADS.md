@@ -1379,6 +1379,135 @@ Es decir, las soluciones proponen la siguiente estructura: Si un proceso desea e
 a su critical region debe revisar si está permitido. En caso no esté el proceso se mantiene en un loop
 hasta que se le dé el permiso.
 
+Esto no solo desperdicia el tiempo del CPU, sino que puede tener efectos inesperados.
+Consideremos una CPU con 2 procesos, H, con prioridad alta y L con menor prioridad.
+Las reglas de programación son tales que H se ejecuta siempre que esté en estado listo.
+En un cierto momento, cuando L está en la región crítica, H se encuentra listo para
+ejecutarse(se completó una operacion I/O). H ahora se encuentra en busy waiting, pero 
+como L nunca se programa mientras H se está ejecutando, L nunca tiene la oportunidad 
+de salir de su región crítica, por lo que H hace un bucle eterno. Esta situación se 
+denomina a veces problema de inversión de prioridad.
+
+Veamos ahora algunos procesos de intercomunicación primitivos que bloquean en lugar de malgastar
+tiempo en la CPU cuando no se les permite entrar a las regiones críticas.
+
+Una de las más sencillas es el par de sleep y wakeup. Sleep es una llamada al sistema que 
+hace que la llamada se bloquee, es decir, se suspenda hasta que otro proceso la despierte.
+La llamada wakeup tiene un parámetro, proceso a ser despertado.
+Alternativamente, tanto sleep como wakeup tiene cada uno un parámetro, una dirección de memoria
+usada para emparejar sleeps con wakeups.
+
+#### The Producer-Consumer problem
+----
+Para ver como usar estos interprocesos veamos el ejemplo del productor y consumidor.
+2 procesos comparten un buffer común. Uno de ellos, el productor, pone información
+en el buffer y el otro, el consumidor, la toma(también se puede tomar el ejemplo con m productores
+y n consumidores pero para facilitar la solución, veamos el caso de 1 a 1) .
+
+El problema comienza cuando el productor quiere poner un nuevo item en el buffer, pero
+este ya está lleno. La solución para el productor es ir a dormir, para luego despertarse
+cuando el consumidor haya tomado uno o más items. De manera similar, si el consumidor quiere
+remover un item del buffer y ve que este está lleno, este debe ir a dormir hasta que el productor
+ponga algo en el buffer y así luego él se despierte.
+Este enfoque suena simple, pero lleva al mismo caso de race conditions que vimos con el
+spooler directory. Para mantener la cuenta de número de items en el buffer, necesitamos la variable
+count. Si el número máximo de items en el buffer es N, el codigo del productor debe verificar
+si el contador está en N. Si lo está, el productor se va a dormir, sino, el productor ingresa
+otro item y actualiza el contador.
+
+El código del consumidor es similar: primero revisa si el contador es 0, si lo es este se va a dormir, sino
+remueve el item y disminuye el contador. Cada proceso revisa si el otro debe despertarse y si debe, lo despierta.
+EL código para el productor y consumidor se encuentra en la figura 2-27.
+
+Para expresar system calls como *sleep* o *wakeup* en C, las mostraremos como llamadas a rutinas de biblioteca.
+No existen en la librería standar de C, pero se pueden usar en cualquier sistema que tenga estas systems calls.
+Las funciones *insert_item* y *remove_item*, las cuales no se muestran 
+, se encargan de la contabilidad de poner y sacar elementos de la memoria intermedia.
+
+
+
+![imagen2.27](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-27.png?raw=true)
+
+Ahora, respecto a la race condition, este puede ocurrir si el acceso a la variable count es sin restricciones.
+En consecuencia podría pasar lo siguiente: El buffer está vacío y el consumidor acaba de leer
+que el contador está en 0. En ese momento, el planificador de trabajos decide parar la ejecución del consumidor 
+y comenzar a ejecutar al productor. El productor inserta un item en el buffer, incrementa el contador y se da cuenta que 
+ahora es 1. Si el contador fue 0 hace unos momentos, entonces el consumidor va a hacer *sleep*, el productor llama
+*wakeup* y "despierta" al consumidor.
+
+Sin embargo, el consumidor no estaba durmiendo lógicamente aún, entonces
+la señal de *wakeup* se pierde. Cuando sea el turno del consumidor, él va a leer valor del contador anteriormente
+leído, va a encontrar que es 0 y se jecuta *sleep*. Ambos se irán a dormir para siempre.
+
+La esencia de este problema es que se envía la señal de *wakeup* a una función que aún no duerme y por ende
+esta señal se va a perder. Si esta no se perdiera, todo andaría bien en el programa. Una forma de arreglar esto
+es modificar las reglas para añadir un *wakeup waiting bit*. Cuando se envía una señal
+de wakeup a un proceso que sigue despierto, se setea este bit. Después cuando el proceso
+intente ir a dormir, si el wakeup bit está en activo, este se apagará, pero el proceso
+seguirá despierto. El wakeup waiting bit es una alcancía para guardar wakeup signals.
+El consumidor limpia el waiting bit en cada iteración del loop.
+
+Si bien el wakeup waiting bit funciona en este caso, esta solución no es útil para
+3 o más procesos. Podríamos hacer otro parche y añadir un segundo bit de espera de 
+despertar, o tal vez 8 o 32 de ellos, pero en principio el problema sigue ahí.
+
+### 2.3.5 Semaphores
+
+Esta era la situación en 1965, cuando E. W. Dijkstra (1965) sugirió utilizar una variable entera para contar el número de 
+wakeups guardados para uso futuro. En su propuesta, se introdujo un nuevo tipo de variable, que denominó semáforo. Un 
+semáforo podía tener el valor 0, indicando que no se había guardado ningún wakeup, o algún valor positivo si había uno 
+o más wakeups pendientes.
+
+Dijsktra propuso tener 2 operaciones para el semáforo: *down* and *up*(generalizacions de wakeup y sleep).
+La operación *down* en el semáforo, revisa si el valor es mayor a 0. Si lo es disminuye el valor(utiliza una activación almacenada)
+y luego continua. Si el valor es 0, el proceso es puesto a dormir sin completar el down por el momento. Revisar el valor, cambiarlo
+y posiblemente mandándolo a dormir, es hecho como una simple y única **atomic action**. Se garantiza que una vez que la operación
+semaforo haya empezado, ningun otro proceso puede acceder al semáforo hasta que la operación se haya completado
+o bloqueado. Esta atomicidad es muy esencial para solucionar problemas de sincronización y evitar race conditions.
+Acciones atómicas, en las que un grupo de operaciones relacionadas se realizan todas sin interrupción o no se realizan en absoluto, 
+son extremadamente importantes también en muchas otras áreas de la informática.
+
+La operación *up* incrementa el valor del semáforo. Si uno más procesos estaban durmiendo en el semáforo, inhabilidatos para completar
+su operación *down* iniciada anteriormente, uno de ellos, escogido por el sistema (aleatoriamente) es permitida para completar su función
+down. Por lo tanto, después de usar un up en un semáforo con procesos durmiendo en él, el semáforo seguirá estando en 0, pero
+habrá un proceso menos durmiendo en él. La operación de incrementar el semáforo y despertar algún proceso es indivisible.
+Ningún proceso se bloquea al hacer un up, al igual que ningún proceso se bloquea al hacer un wakeup en el modelo anterior.
+
+Estos términos se introdujeron por primera vez en el lenguaje de programación Algol 68.
+
+#### **Solving the Producer-Consumer Problem Using Semaphores**
+
+Los semáforos solucionan la pérdida de wakeup mostrada en la figura 2-28. Para que esto funcione correctamente es necesario que
+el semáforo sea implementado de una forma indivisible. La forma normal es implementar *up* y *down* como system calls, donde el sistema
+operativo desactiva brevemente todas las interrupciones mientras comprueba el semáforo, lo actualiza y pone el proceso en reposo, 
+si es necesario. Todas estas acciones toman solo pocas instrucciones, no se produce ningún daño al desactivar las interrupciones.
+Si se están usando múltiples CPUs, cada semáforo debe ser protegido con una variable *lock*, con las
+instrucciones TSL o XCHG usadas para asegurarse de que solo una CPU esté examinando el semáforo en un mismo momento.
+
+Debemos entender que usar TSL o XCHG para evitar que varias CPUs accedan a un mismo semáforo es muy diferente de que el productor o el 
+estén ocupados(busy waiting) esperando a que el otro vacíe o llene el búfer. Las operaciones de semáforo tomo solo pocos microsegundos, mientras que
+el productor o consumidor pueden tomar micho más.
+
+![imagen2.28](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-28.png?raw=true)
+
+Esta solución emplea 3 semáforos: uno llamado *full* para contar el número de slots que están llenos, otro llamado *empty* para contar el número
+de slots que están vacíos y otro llamado *mutex* para asegurarse de que el productor y el consumidor no acceden al
+mismo tiempo. *Full* es inicialmente 0, *empty* es inicialmente el número de slots del buffer y *mutex* es inicialmente 1. Los semáforos inicializados en 1
+y usados para 2 o más procesos#####
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ## APUNTES DE CLASE
 
 En el archivo se relacionado nombre con un nodo-i. 
@@ -1395,3 +1524,5 @@ para poder evitar el race condition? En caso UNIX no lo use actualmente, qué me
 que 2 procesos entre en race condition?
 
 Existe alguna forma de generalizar el Peterson Solution para varios procesos? dado que este solo se muestra para 2 procesos ejecutados sim
+
+planificador de trabajos -> scheduler
