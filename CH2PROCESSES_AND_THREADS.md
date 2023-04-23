@@ -1205,6 +1205,180 @@ difíciles de explicar.
 
 ### 2.3.2 Critical Regions
 
+### 2.3.3 Mutual Exclusion with Busy Waiting
+
+En esta sección vamos a examinar varias propuestas para lograr la exclusión mutua de tal modo que 
+cuando un proceso se encuente en su región crítica, otro proceso entre y cause problemas.
+
+#### Deshabilitar interruptores
+En un sistema de un solo procesador, la solución más simple es tener deshabilitado los interruptores de los
+demás procesos, mientras nuestro proceso se encuentre en su zona crítica, al finalizar nuestro proceso, se volverán
+a habilitar los interruptores. Con las interrupciones deshabilitadas no existirán interrupciones de clock.
+La CPU solo cambia de proceso en proceso como resultado del clock o de interrupciones, con las interrupciones 
+desactivadas la CPU no se cambiará a otro proceso. Entonces, un proceso que deshabilita las interrupciones puede
+puede examinar y actualizar la memoria compartida sin miedo a que otro proceso intervenga.
+Este enfoque es generalmente poco atractivo porque no es prudente dar a los procesos de usuario el poder de desactivar 
+las interrupciones. ¿Qué pasaría si alguno de ellos nunca las reactiva? Esto sería el fin del sistema.
+
+Además, si el sistema es un multiprocesador (con dos o más CPUs) desactivar las interrupciones afecta sólo a 
+la CPU que ejecutó la instrucción de desactivación. Las demás seguirán funcionando y podrán acceder a la 
+memoria compartida.
+
+Por otro lado, con frecuencia es conveniente que el propio núcleo desactive las interrupciones durante unas 
+pocas instrucciones mientras actualiza variables o especialmente listas. Si se produce una interrupción 
+mientras la lista de procesos listos, por ejemplo, está en un estado inconsistente, podrían producirse 
+*race condition*.
+
+En conclusión, deshabilitar interrupciones puede ser útil pero no es apropiado como una exclusión general mutua
+de mecanismos para los procesos de usuario.
+
+Además, la posibilidad de deshabilitar interrupciones para responder a la race condition es cada vez menos eficiente, pues
+las computadoras cada vez cuentan con más núcleos. Esto significa que si un núcleo desactiva sus interrupciones, esto no impide
+que los demás núcleos puedan acceder a su espacio de memoria compartido, es decir, no evitan la race condition.
+
+
+#### Lock Variables
+
+Una solución de software sería tener una única variable compartida (de bloqueo) iniciada en 0.
+Si un proceso desea entrar a su critical region primero revisa el lock. Si el lock es 0, el proceso asigna 1
+al lock y entra al critical region. Si el lock es 1, el proceso espera hasta que sea 0. Es decir, el 0 significa
+que ningun proceso está en el critical region y 1 significa que algún proceso está en el critical region.
+
+Desafortunadamente, esta idea contiene el mismo problema que en el spooler directory. Supongamos que un proceso
+lee el lock y ve que es 0, antes de que setee el lock como 1, otro proceso comienza a ejecutarse y lee el lock en 0
+y lo setea en 1. Cuando el primer proceso se reanude y setee el lock en 1, tendremos 2 procesos en la misma critical
+region.
+
+Ahora podrías pensar que podríamos evitar este problema leyendo primero el valor del bloqueo, y comprobándolo 
+de nuevo justo antes de almacenarlo, pero eso realmente no ayuda. La carrera ocurre ahora si el segundo 
+proceso modifica el bloqueo justo después de que el primer proceso haya terminado su segunda comprobación.
+
+#### Strict Alternation
+
+Veamos un ejemplo en lenguaje C. En la figura 2-23 la variable tipo int turn, inicialmente puesta en 0, lleva 
+la cuenta de a quién le toca entrar en la critical region y examina o actualiza la memoria compartida.
+Inicialmente, el proceso 0 lee turn, ve que es 0 y entra a la región crítica. El proceso 1 ve que turn es 0 y
+entra cíclicamente en un loop testeando turn para cuando este sea 1. Probar continuamente una variable hasta 
+que aparezca algún valor se denomina *busy waiting*. Esto debe tratar de evitarse, dado que desperdicia tiempo
+en la CPU. Solo es bueno usarlo cuando es necesario. El lock que produce el busy waiting es llamado spin lock.
+Cuando el proceso 0 deja la critical region, este cambia el turn a 1, lo que permite al proceso 1 entrar al critical
+region. Supongamos que el proceso 1 entra sale del critical region rápidamente, entonces ambos procesos
+estarían en su zona no crítica, y se cambiaría el turn 0, evitando nuevamente que ambos procesos estén en la critical
+region simultáneamente.
+
+De repente, el proceso 0 termina su región no crítica y vuelve a la parte superior de su bucle. 
+Desafortunadamente, no se le permite entrar en su región crítica ahora, porque el turno es 1 y el proceso 1 
+está ocupado con su región no crítica. Se cuelga en su bucle while hasta que el proceso 1 pone turn a 0. 
+Dicho de otra manera, tomar turnos no es una buena idea cuando uno de los procesos es mucho más lento que el 
+otro.
+
+![figura2.23](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-23.png?raw=true)
+
+Esta situación viola la condición 3 expuesta anteriormente: el proceso 0 está siendo bloqueado por un proceso que no se encuentra 
+en su región crítica.De hecho, esta solución requiere que los dos procesos se alternen estrictamente a la hora de entrar en sus 
+regiones críticas, por ejemplo, en la cola de impresión de archivos. A ninguno de los dos se le permitiría 
+poner en cola dos archivos seguidos. Aunque este algoritmo evita todas las carreras, no es realmente un 
+candidato serio como solución porque viola la condición 3.
+
+#### Peterson Solution
+
+Peterson descubrió una forma mucho más sencilla de lograr la exclusión mutua, con lo que la solución de 
+Dekker quedó obsoleta. El algoritmon de Peterson es mostrado en la figura 2-24.
+
+![imagen2.24](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-24.png?raw=true)
+
+Antes de usar las variables compartidas, cada proceso llama a *enter_region* con su propio numero de proceso
+0 o 1 como parámetro. Esta llamada puede causar una espera hasta que sea seguro entrar. Después de finalizar
+con la variable compartida, el proceso llama al *leave_region* para indicar que ya terminó y así permitir
+al otro proceso entrar si es que este lo desea.
+
+Veamos un ejemplo, al inicio ningún proceso está en la critical region. Ahora el proceso 0 llama a 
+*enter_region*. Este indica que está interesado y setea el array element a TRUE y coloca turno en 0.
+Si el proceso 1 no está interesado *enter_region* retorna inmediatamente, en caso contrario, este proceso
+también llama al *enter_region* y se quedará ahí hasta que interested[0] se torne a FALSE.
+Y el evento solo puede suceder cuando el proceso 0 llame a *leave_region* para salir
+de la region crítica.
+
+Ahora veamos que pasa si ambos procesos llaman a *enter_region* simultáneamente.
+Ambos van a setear su número de proceso en turn. El último que guarde su turno es el
+que se va a contar, el primero se va a sobreescribir y se va a perder. Supongamos
+que el proceso 1 guardó al último, entonces su turno es 1. Luego ambos procesos entrarán al while
+statement, process 0 ejecuta el while 0 veces y entra a la región crítica.
+El proceso 1 se queda en el loop y no entra a la región crítica hasta que
+el proceso 0 salga de la región crítica.
+
+#### The TSL Intruction
+
+Ahora veamos una propuesta que necesita una pequeña ayuda del hardware. Algunas
+computadoras, especialmente las diseñadas con multiples procesadores en mente
+tienen una instrucción como: 
+
+        TSL RX,LOCK
+
+(Test and Set Lock) que funciona de la siguiente manera:
+Se lee el contenido en el memory word *lock* en el registro RX y se guarda un valor distinto
+a 0 en la dirección de memoria *lock*. Se garantiza que las 
+operaciones de lectura de la palabra y de almacenamiento en 
+ella son indivisibles(ningun otro procesador puede acceder a la memory word hasta
+que la instrucción finalice). La CPU ejecuta la instrucción TSL y bloquea el memory bus
+para evitar que otras CPUs accedan a la direción de memoria hasta que se haya realizado la instrucción.
+
+Cabe destacar que bloquear la memoria del bus es distinto a deshabilitar las interupciones.
+Deshabilitar interrupciones para realizar un read en la memoria de una palabra seguido de un
+write no previene que otro procesador en el bus puede acceder a la dirección de la palabra
+entre la lectura y escritura. Es decir, deshabilitar interrupciones en un procesador
+no las deshabilita en los demás procesadores. La única forma de evitar que los demás
+procesadores accedan a la memoria de la palabra es cerrando el bus, el cual requiere
+una facilidad de hardware(básicamente, una línea de bus que 
+afirma que el bus está bloqueado y no está disponible para 
+procesadores distintos del que lo bloqueó).
+
+Para usar el TSL vamos a usar una variable compartida llamada *lock* para coordinar el acceso 
+a la memoria compartida. Cuando el lock es 0, cualquier 
+proceso puede ponerlo a 1 utilizando la instrucción TSL y 
+luego leer o escribir en la memoria compartida. Cuando 
+termina, el proceso vuelve a poner el bloqueo a 0 
+utilizando una instrucción move normal.
+
+Ahora, ¿cómo esta solución previene el race condition evitando el ingreso de 2
+procesos a la misma región crítica?. La solución está en la figura 2-25.
+
+![imagen2.25](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-25.png?raw=true)
+
+Acá hay 4 instrucciones de subrutina en un lenguaje ensamblador ficticio.
+La primera instrucción copia el antiguo valor de lock al registro y setea 1 al lock.
+Luego, el antiguo valor es comparado con 0. Si no es 0, el lock se acaba de setear entonces
+el programa vuelve al inicio y vuelve a testearlo. Tarde o 
+temprano este será 0(cuando el proceso actualmente en su 
+región crítica ha terminado con su región crítica), y la 
+subrutina regresa, con el bloqueo establecido.
+
+Limpiar el lock es simple, el programa solo guarda 0 en lock. No se necesita ninguna 
+instrucción especial de sincronización. 
+
+La solución al problema de la región crítica ahora es más fácil. Antes de entrar a la región crítica el proceso
+llama a enter_region, el cual realiza busy waiting hasta que el lock se libere, luego adquiere el lock y retorna.
+Después de dejar la región crítica el proceso llama a *leaves_region* y guarda el lock en 0.
+Como todas las soluciones basadas en regiones críticas, los procesos deben llamar
+*enter_region* y *leave_region* en los momentos correctos para que el método funcione.
+Si un proceso hace trampa, la exclusión mutua va a fallar. En otras palabras las regiones
+críticas funcionan solo si los procesos cooperan.
+
+Una solución alternativa al STL es el XCHG el cual intercambia 
+atómicamente el contenido de dos posiciones, por ejemplo, 
+un registro y una palabra de memoria. El código se muestra 
+en la Fig. 2-26, y, como puede verse, es esencialmente el 
+mismo que la solución con TSL.
+
+![imagen2.26](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-26.png?raw=true)
+
+### 2.3.4 Sleep and Wakeup
+
+Las soluciones mostradas anteriormente son correctas, pero tienen el problema del busy waiting.
+Es decir, las soluciones proponen la siguiente estructura: Si un proceso desea entrar
+a su critical region debe revisar si está permitido. En caso no esté el proceso se mantiene en un loop
+hasta que se le dé el permiso.
+
 ## APUNTES DE CLASE
 
 En el archivo se relacionado nombre con un nodo-i. 
@@ -1214,3 +1388,10 @@ Todas las variables locales de funcion, parametros y punto de retorno.
 Todos los hilos se encuentran dentro de segmento de texto de un mismo proceso.
 
 cuando algunos procesos son concurrentes, esto significa que comparten recursos
+
+Posible pregunta: 
+En UNIX o en algún sistema operativo se ha usado el Strict Alternation o el Peterson's Solution
+para poder evitar el race condition? En caso UNIX no lo use actualmente, qué metodo utiliza para evitar
+que 2 procesos entre en race condition?
+
+Existe alguna forma de generalizar el Peterson Solution para varios procesos? dado que este solo se muestra para 2 procesos ejecutados sim
