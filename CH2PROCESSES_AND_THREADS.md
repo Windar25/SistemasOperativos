@@ -1458,7 +1458,7 @@ wakeups guardados para uso futuro. En su propuesta, se introdujo un nuevo tipo d
 semáforo podía tener el valor 0, indicando que no se había guardado ningún wakeup, o algún valor positivo si había uno 
 o más wakeups pendientes.
 
-Dijsktra propuso tener 2 operaciones para el semáforo: *down* and *up*(generalizacions de wakeup y sleep).
+Dijsktra propuso tener 2 operaciones para el semáforo: *down* and *up*(generalizacions de sleep y wakeup respectivamente).
 La operación *down* en el semáforo, revisa si el valor es mayor a 0. Si lo es disminuye el valor(utiliza una activación almacenada)
 y luego continua. Si el valor es 0, el proceso es puesto a dormir sin completar el down por el momento. Revisar el valor, cambiarlo
 y posiblemente mandándolo a dormir, es hecho como una simple y única **atomic action**. Se garantiza que una vez que la operación
@@ -1486,27 +1486,216 @@ instrucciones TSL o XCHG usadas para asegurarse de que solo una CPU esté examin
 
 Debemos entender que usar TSL o XCHG para evitar que varias CPUs accedan a un mismo semáforo es muy diferente de que el productor o el 
 estén ocupados(busy waiting) esperando a que el otro vacíe o llene el búfer. Las operaciones de semáforo tomo solo pocos microsegundos, mientras que
-el productor o consumidor pueden tomar micho más.
+el productor o consumidor pueden tomar mucho más.
 
 ![imagen2.28](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-28.png?raw=true)
 
 Esta solución emplea 3 semáforos: uno llamado *full* para contar el número de slots que están llenos, otro llamado *empty* para contar el número
 de slots que están vacíos y otro llamado *mutex* para asegurarse de que el productor y el consumidor no acceden al
-mismo tiempo. *Full* es inicialmente 0, *empty* es inicialmente el número de slots del buffer y *mutex* es inicialmente 1. Los semáforos inicializados en 1
-y usados para 2 o más procesos#####
+mismo tiempo. *Full* es inicialmente 0, *empty* es inicialmente el número de slots del buffer y *mutex* es inicialmente 1. Los semáforos que se 
+inicializan a 1 y son utilizados por dos o más procesos para garantizar que sólo uno de ellos puede entrar en su región crítica al mismo tiempo se denominan **binary semaphores**.
 
+Si cada procesos realiza un down justo antes de entrar a su región crítica y realiza un up justo después de dejarla,
+la exclusión mutua es garantizada.
 
+Ahora que disponemos de una buena comunicación entre procesos, veamos la secuencia de interrupcion de la figura 2-5.
+En un sistema con semáforos, el camino natural para ocultar interrupciones es tener un semáforo inicializado en 0 y asociado con
+cada dispositivo I/O. Justo después de comenzar con el dispositivo I/O, el manejador de procesos realiza un down en el semáforo asociado
+bloqueandolo inmediatamente. Cuando la interrupción retorne, el manejador de interrupciones realizará un up en el semáforo asociado, el cual permitirá
+que el proceso relevante esté listo para ejecutarse nuevamente. En este modelo, el paso 5 en la figura 2-5 consiste en hacer up
+en el semáforo correspondiente, para que en el paso 6 el planificador pueda ejecutar el administrador de dispositivos.
+Por supuesto, si hay varios procesos listos, el planificador probablemente vaya a ejecutar el más importante. Vamos a ver algunos de estos
+algoritmos más tarde en este capítulo.
 
+En el ejemplo de la figura 2-28, estamos usando semáforos en 2 distintas formas. Es importante hacer explícita esta diferencia. El semaforo *mutex* es usado para exclusión
+mutua. Está diseñado para garantizar que solo un proceso a la vez va a estar leyendo o escribiendo en el buffer y las variables asociadas.
+Esta exclusión mutua es necesaria para evitar problemas. Vamos a estudiar exclusión mutua y como lograrla en la siguiente sección.
 
+El otro uso de semáforos es para la **sincronización**. Los semáforos *full* y *empty* son necesarios para garantizar que ciertos eventos secuenciales
+no ocurran. En este caso, ellos garantizan que el productor tendrá su ejecución cuando el buffer esté lleno y que el consumidor detendrá su ejecución cuando el buffer esté
+vacío. Su uso es distinto para exclusión mutua.
 
+### 2.3.6 Mutexes
 
+Cuando la capacidad del semáforo para contar no es necesaria, a veces se utiliza una versión simplificada del semáforo, llamada mutex.
+Los mutex solo son útiles para manejar la exclusión mutua para algunos recursos compartidos o partes de código.
+Son fáciles y eficientes de implementar, lo que los hace especialmente útiles en paquetes de hilos que se implementan completamente en el espacio de usuario.
 
+Un **mutex** es una variable compartida que puede encontrarse en 2 estados: bloqueado o desbloqueado.
+En consecuencia, solo necesitamos un bit para representarlo, pero en la práctica un entero es más usado,
+0 significa desbloqueado y todos los demás valores significan bloqueado.
 
+Se usan 2 procesos con los mutex. Cuando un hilo o proceso necesita acceder a un región crítica, este llama al 
+*mutex_lock*. Si el mutex esta desbloqueado(osea que la región crítica está disponible), la llamada tiene éxito y 
+el hio llamante está libre para entrar a la región crítica. 
 
+De otra forma, si el mutex se encuentra bloqueado, el hilo llamante is bloqueado hasta que el hilo en la región crítica termine y
+ejecute la función *mutex_unlock*. Si múltiples hilos están bloqueados en el mútex, uno de ellos es escogido aleatoriamente y 
+son permitidos para adquirir el lock.
 
+Como los mutex son simples, pueden implementarse fácilmente en el espacio de usuario siempre que se disponga de una instrucción TSL o XCHG.
+El código para *mutex_lock* y *mutex_unlock* para su uso con un paquete de hilos a nivel de usuario se muestran en la Fig. 2-29.
+La solución con XCHG es esencialmente la misma.
 
+![imagen2.29](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-29.png?raw=true)
 
+El código para *mutex_lock* es muy similar al código de *enter_region* en la figura 2-25, pero con una diferencia
+crucial. Cuando *enter_region* falla a la hora de entrar a la región crítica, este se mantiene consultando el lock repetidas veces
+(busy waiting). Con el tiempo, el reloj se agota y algún otro proceso está programado para ejecutarse. Tarde o temprano, el proceso 
+que tiene el bloqueo consigue ejecutarse y lo libera.
 
+Con user threads la situación es distinta pues no existe un clock que detenga el hilo que ya no deba ejecutarse más. En consecuencia, 
+un hilo que intenta adquirir un bloqueo mediante la espera ocupada hará un bucle eterno y nunca adquirirá el bloqueo porque nunca permite 
+que ningún otro hilo se ejecute y libere el bloqueo.
+
+Acá llega la diferencia entre *enter_region* y *mutex_lock*. Cuando se falle al adquirir el lock, este debe llamar
+a la llamada thread_yield para dejar el CPU a otro hilo. De esta forma no hay busy waiting. Cuando el hilo se ejecute 
+nuevamente esté revisará nuevamente el lock.
+
+Comenzando que *thread_yield* es una llamada para el planificador de hilos en espacio de usuario, este es 
+bastante rápido. En consecuencia ni *mutex_lock* ni *mutex_unlock* requieren alguna
+llamada al kernel. Con ellas, los subprocesos de nivel de usuario pueden sincronizarse por completo en el espacio de usuario utilizando 
+procedimientos que sólo requieren un puñado de instrucciones.
+
+El sistema de mutex mostrado anteriormente es un conjunto básico de llamadas. Con todo software, siempre hay demanda de más funciones, y las 
+primitivas de sincronización no son una excepción. Por ejemplo, aveces un packete de hilos ofrece la llamada *mutex_trylock* adquiere el 
+bloqueo o devuelve un código en caso de fallo, pero no bloquea. Esta llamada da al hilo la flexibilidad de decidir qué hacer a continuación si 
+hay alternativas para simplemente esperar.
+
+Hay una cuestión sutil que hasta ahora hemos pasado por alto, pero vale la pena explicar.  Con un paquete de hilos en espacio de usuario 
+no hay problema con que varios hilos tengan acceso al mismo mutex, ya que todos los hilos operan en un espacio de direcciones común.
+Sin embargo, con la mayoría de las soluciones anteriores, como el algoritmo de Peterson y los semáforos, hay una suposición tácita de que múltiples 
+procesos tienen acceso al menos a algo de memoria compartida, quizás sólo una palabra, pero algo. Si los procesos tienen espacios de direcciones disjuntos, 
+como hemos dicho sistemáticamente, ¿cómo pueden compartir la variable de turno en el algoritmo de Peterson, o los semáforos o un buffer común? 
+
+Hay 2 respuesta. Primero, alguna de las estructuras de datos comunes como los semáforos, pueden estar guardados en el kernel y solo son accedidas mediante
+system calls. Este enfoque elimina el problema. Segundo, la mayoria de sistemas operativos modernos, ofrecen formas de compartir algunas porciones de espacio
+de memoria con otros procesos. De esta forma, los buffers y otras estructuras de datos pueden ser compartidas. En otro caso, tomando el peor de todos, 
+un archivo compartido puede ser usado. Si 2 o más procesos comparten la mayoría o todo su espacio de memoria, no habría mucha diferencia entre los hilos y 
+los procesos. 2 procesos que compartan el mismo espacio de memoria siguen teniendo diferentes archivos abiertos, timers de alarma y otras propiedades, mientras 
+que los hilos en un mismo proceso las comparten. Y siempre es cierto que los procesos múltiples que comparten un espacio de direcciones común nunca tienen la 
+eficiencia de los hilos a nivel de usuario, ya que el núcleo está profundamente implicado en su gestión.
+
+#### Futexes
+
+Con el crecimiento del paralelismo, la eficiencia de sincronización y el locking es bastante importante para el rendimiento. Los spin locks son rápidos si 
+la espera es corta, pero desperdician ciclos de CPU si no lo son. Si hay mucha espera, es más eficiente bloquear el proceso y permitir al kernel desbloquearlo
+solo cuando el lock esté libre.  Desafortunadamente esto tiene el problema inverso: funciona bien bajo una fuerte espera, pero cambiar continuamente al 
+kernel es costoso si hay muy poca espera para empezar. Para hacer esto peor, puede no ser fácil predecir la cantidad de espera de bloqueos.
+
+Una solución interesante a este problema es el **futex** o el "fast user space mutex". Un futex es una caracteristica de Linux que implementa el bloqueo 
+básico(mutex) pero evita caer en el kernel a menos que este realmente lo necesite. Dado que cambiar entre el kernel es bastante caro, usar el futex es 
+considerablemente rentable. Un futex consiste en 2 partes: en un servicio de kernel y una librería de usuario. El servicio de kernel provee una "wait queue"
+que permite a múltiples procesos esperar en un lock. Ellos no se van a ejecutar, hasta que el kernel los desbloquee. Para poner un proceso en la cola de espera 
+se requiere una llamada al sistema (costosa) y debe evitarse. En la ausencia de espera, los futex trabajan completamente en los user space. Los procesos comparten
+una misma variable lock(32-bit integer).Supongamos que el bloqueo es inicialmente 1, lo que suponemos que significa que el bloqueo está libre. Un hilo toma 
+el lock realizando un atomic "decremente and test" (Las funciones atómicas en Linux consisten en ensamblaje en línea envuelto en funciones C y se definen en 
+archivos de cabecera). Luego, el hilo inspecciona el resultado para ver si el lock está libre o no. Si está libre, todo está bien y nuestro hilo ha tomado satisfactoriamente
+el lock. Si el lock le pertenece a otro hilo, nuestro hilo se queda esperando. En este caso, la librería de futex no entra en spin, pero usa una llamada al sistema 
+para poner al hilo en la cola de espera del kernel. Esperemos que el costo de cambiar al kernel, esté justificado, dado que el hilo fue bloqueado de todos modos.
+Cuando un hilo termina con el lock, libera el lock con un atomic "increment and test" y revisa el resultado para ver si algún proceso continua bloqueado en la
+cola de espera del kernel. Si es así, hará saber al kernel que puede desbloquear uno o más de estos procesos. Si no hay contención, el kernel no interviene en absoluto.
+
+#### Mutexes in Pthreads
+Pthreads proporciona una serie de funciones que se pueden utilizar para sincronizar hilos.
+Los mecanismos básicos usados en una variable mutex son para bloquear o desbloquear, es decir, cuidar la región crítica.
+Un thread que quiere entrar a la zona crítica primero debe lockear el mutex asociado. Si el mutex no está bloqueado el hilo puede
+entrar y el lock es atomicamente seteado, evitando que otros hilos entren. Si el mutex ya está bloqueado, el hilo llamado es bloqueado
+hasta que este sea desbloqueado. Si varios hilos esperan en un mismo mutex, cuando este se desbloquee
+uno de ellos es permitido para tomarlo y volver a bloquearlo. Estos locks no son mandatorios, está en manos del programador
+asegurarse de usar los hilos correctamente.
+
+La mayor llamada relacionada a los mutexes se encuentra en la figura 2-30. Como vemos, los mutex pueden ser creados y destruidos.
+Las llamadas para realizar estas operaciones son:
+- phtread_mutex_init
+- pthread_mutex_destroy
+
+Los hilos tambien pueden ser bloqueados con *pthread_mutex_lock* el cual trata de adquirir el lock y bloquea el hilo si ya estaba
+lockeado. También existe la opción de tratar de lockear un mutex y fallar con un codigo de error, en vez de bloquear el hilo si es que 
+el lock ya estaba seteado. Esta llamada es *pthread_mutex_trylock*. Esta llamada permite a los hilos realizar efectivamente el busy waiting
+si es necesario. Finalmente, *pthread_mutex_unlock* desbloquea un mutex y libera exactamente un hilo si uno o más están en espera de él. Los mutex
+también pueden tener atributos, pero estos son usados solo para propósitos especiales.
+
+![imagen2.30](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-30.png?raw=true)
+
+En adición a los mutex, Pthreads ofrece un segudo mecanismo de sincronización: **condition variables**. Los mutex son buenos para permitir o restringir accesos 
+a las regiones críticas. Las variables de condición permiten que los hilos se bloqueen si no se cumple alguna condición. Casi siempre los dos métodos se utilizan 
+juntos. Veamos ahora la interacción de hilos, mutexes y variables de condición con un poco más de detalle.
+
+Como un ejemplo simple, consideremos el problema del productor-consumidor nuevamente: un hilo comienza a poner cosas en el buffer y otro comienza a tomar cosas del 
+buffer. Si el productor descubre que no hay más slots disponibles en el buffer, este debe bloquearse hasta que un slot esté disponible. Los mutex permiten hacer la 
+comprobación atómicamente sin interferencia de otros hilos, pero habiendo descubierto que el buffer está lleno, el productor necesita una forma de bloquearse y ser 
+despertado más tarde. Esto es lo que permiten las variables de condición. 
+
+Las llamadas más importantes relacionadas a las variables de condición se encuentran en la figura 2-31.
+Como probablemente esperabas, existen llamadas para crear y destruir variables de condition. Pueden tener atributos y existen varias llamadas para gestionarlos (no se muestran).
+Las operaciones primarias de las variables de condition son *pthread_con_wait* y *pthread_cond_signal*. La primera bloquea el hilo que realiza la llamada hasta que otro hilo le 
+envía una señal (utilizando la segunda llamada).Los motivos de bloqueo y espera no forman parte del protocolo de espera y señalización, por supuesto. El hilo bloqueado suele estar esperando
+la señal de un hilo para poder realizar algún trabajo, liberar algún recurso o realizar alguna otra actividad. Solo así podrá continuar el hilo bloqueado. Las variables de condición permiten que 
+este waiting y blocking se realicen atómicamente. La llamada *pthread_cond_broadcast* se utiliza cuando hay varios hilos potencialmente todos bloqueados y esperando la misma señal.
+
+Las variables de condición y los mutex siempre son usados juntos. El patrón es para un hilo que lockea un mutex, luego espera en una variable condicional si es que no obtiene lo que quiere.
+Eventualmente otro hilo le envía una señal y él puede continuar. La llamada *pthread_cond_wait* desbloquea atómicamente el mutex que está reteniendo. 
+Por esta razón, el mutex es uno de los parámetros.
+
+También vale la pena señalar que las variables de condición (a diferencia de los semáforos) no tienen memoria. Si una señal es enviada a una variable de condición en el cual no hay un hilo esperando,
+se pierde la señal. Los programadores deben ser cuidadosos para no perder señales. 
+
+![imagen2.31](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-31.png?raw=true)
+
+Como ejemplo de como los mutexes y variables de condición usadas, la figura 2-32 muestra un ejemplo simple del problema del productor-consumidor con un solo buffer.
+Cuando el productor ha llenado el buffer, este debe esperar a que el consumidor la vacíe antes de producir el siguiente artículo. Similarmente, cuando el consumidor ha removido 
+un ítem, debe esperar a que el consumidor produzca otro . Esto es bastante simple, este ejemplo muestra los mecanismos básicos. 
+La sentencia que pone un hilo a dormir siempre debe comprobar la condición para asegurarse de que se cumple antes de continuar, ya que el hilo podría haber sido despertado debido a una señal UNIX o alguna otra razón.
+
+![imagen2.32](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-32.png?raw=true)
+
+### 2.3.7 Monitors
+
+Con semaforos y mutex los interprocesos de comunicación se pueden ver fáciles, verdad?
+Miremos cuidadosamente el orden de los downs antes de insertar o remover items del buffer en la figura 2-28. Supongamos que 2 downs en el código del productor
+fueran cambiados en orden, entonces el mutex fue decrementado antes de que esté vacío en vez de realizarlo después. Entonces, la siguiente vez que el consumidor
+quiera acceder al buffer, realizará un down en el mutex, ahora 0 y se bloqueará. Ambos proceso estarán bloqueados por siempre y no podrán terminar. Esto se llama deadlock
+y lo veremos en el capítulo 6. 
+
+Este problema apunta a mostrar la importancia de ser cuidadoso al usar semáforos. Un error sútil y todo se paraliza. Es como programar en lenguaje ensamblador, solo que peor, 
+porque los errores son race condition, deadlock y otras formas de comportamiento impredecible e irreproducible.
+
+Para facilitar la escritura de programas correctos, Brinch Hansen y Hoare propusieron una sincronización primitiva de alto nivel llamada **monitor**. Sus propósitos son se diferencian sutilmente,
+como veremos. Un monitor es una colección de funciones, variables, y estructuras de datos que son agrupadas juntas en una especie de módulo o package. Los procesos pueden llamar a las funciones de un monitor
+cuando ellas lo requieran, pero no pueden acceder a la estructura interna del monitor desde funciones declaradas afuera del monitor. La figura 2-33 muestra un monitor escrito
+en un lenguaje imaginario, Pidgin Pascal. No se puede usar C dado que los monitores son un *language concept*.
+
+![imagen2.33](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-33.png?raw=true)
+
+Los monitores tienen una propiedad importante que la hace útil para lograr la exclusión mutua: solo un proceso puede estar activo en un monitor en cualquier instante. 
+Los monitores son una construcción del lenguaje de programación, por lo que el compilador sabe que son especiales y puede manejar las llamadas a procedimientos de monitorización de forma diferente a otras llamadas a procedimientos.
+Tipicamente, cuando un proceso llama a una función del monitor, las primeras intrucciones de la función revisa si otro proceso se encuentra activo con el monitor.
+Si lo está, el proceso que realizó la llamada será suspendido hasya que el otro deje el monitor, en caso no haya otro proceso en el monitor, el proceso llamante podrá entrar.
+Depende del compilador implementar la exclusión mutua en las entradas del monitor, pero una forma común es utilizar un mutex o un semáforo binario. Dado que el compilador, y no el programador, se encarga de la exclusión mutua, 
+es mucho menos probable que algo salga mal. En cualquier caso, la persona que escribe el monitor no tiene por qué ser consciente de cómo el compilador organiza la exclusión mutua. Es suficiente saber que al convertir todas las 
+regiones críticas en procedimientos de monitorización, nunca dos procesos ejecutarán sus regiones críticas al mismo tiempo. 
+
+Aunque los monitores provean una manera fácil de lgrar exclusion mutua, como hemos visto anteriomente, esto no es suficiente. También necesitamos una forma de que los procesos se bloqueen cuando no puedan continuar.
+En el problema productor-consumidor, es bastante fácil poner todas las pruebas para buffer-full y buffer-empty en procedimientos de monitorización, pero ¿cómo debería bloquear el productor cuando encuentra el buffer lleno?
+La solución reside en la introducción de variables de condición, junto con dos operaciones sobre ellas, wait y signal. Cuando una función del monitor descubra que ya no puede continuar(buffer lleno para el productor), este realiza
+un wait en algouna variable de condición, dice, full. Esta acción causa que el proceso llamante se bloquee. Esto permite a otros procesos que anteriormente estaban prohibidos de entrar al monitor que entren. 
+Hemos visto variables de condición y estas operaciones en el contexto del Pthread.
+
+Para el otro proceso, por ejemplo, el consumidor, puede despertar a la parte durmiente realizando una señal en la variable de condición en la que espera su compañero.
+Para evitar tener 2 procesos activos en el monitor al mismo tiempo, necesitamos una regla que diga qué sucede después de una señal. Hoare propuso dejar funcionar el proceso recién despertado, suspendiendo el otro.
+Brinch Hansen propuso solucionar el problema exigiendo que un proceso que emita una señal salga inmediatamente del monitor. En otras palabras, una sentencia de señal sólo puede aparecer como sentencia final en un procedimiento de monitorización. 
+Utilizaremos la propuesta de Brinch Hansen porque es conceptualmente más sencilla y también más fácil de implementar. Si se realiza una señal sobre una variable de condición en la que hay varios procesos en espera, sólo se reactivará uno de ellos, 
+determinado por el planificador del sistema.
+
+Existe una tercera solución que no fue propuesta ni por Hoare o Brinch Hansen. Esto es para permitir que el señalador continúe ejecutándose y que el proceso en espera comience a ejecutarse sólo después de que el señalador haya salido del monitor.
+Las variables de condición no son contadores. Ellas no acumulan señales para su uso posterior como lo hacen los semáforos. Entonces, si una variable de condición es señalada sin nadie que lo espere, la señal se pierde para siempre.
+En otras palabras, el wait debe estar antes de la señal. Esta regla hace la implementación mucho más simple. En la práctica esto no es un problema dado que es fácil llevar un registro del estado de cada proceso con variables si es que 
+lo necesitamos. Un proceso que de otro modo podría hacer una señal puede ver que esta operación no es necesaria mirando las variables.
+
+Un esqueleto del problema del productor-consumidor con monitores es mostrado en la figura 2-34 con el lenguaje imaginario, Pidgin Pascal.
+
+Puedes estar pensando 
 
 ## APUNTES DE CLASE
 
@@ -1526,3 +1715,6 @@ que 2 procesos entre en race condition?
 Existe alguna forma de generalizar el Peterson Solution para varios procesos? dado que este solo se muestra para 2 procesos ejecutados sim
 
 planificador de trabajos -> scheduler
+estudiar la imagen 2-28
+
+preguntar semáforo.
