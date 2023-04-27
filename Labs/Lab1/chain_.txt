@@ -1,0 +1,1 @@
+systemd---systemd---gnome-terminal----bash---chain---chain---chain---chain---sh---pstree

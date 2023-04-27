@@ -1,0 +1,5 @@
+multifork(70724)-+-multifork(70725)-+-multifork(70727)---multifork(70732)
+                 |                  `-multifork(70731)
+                 |-multifork(70726)---multifork(70729)
+                 |-multifork(70728)
+                 `-sh(70730)---pstree(70733)
