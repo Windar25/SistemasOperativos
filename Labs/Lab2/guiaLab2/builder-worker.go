@@ -72,6 +72,7 @@ func productor() {
 
 func consumidor() {
 	var item int
+	int x:=3
 	for n := 0; n < 20; n++ {
 		//fmt.Printf("LLegue consumidor\n")
 		wg2.Wait()
