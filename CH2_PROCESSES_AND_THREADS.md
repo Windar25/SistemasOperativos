@@ -1901,6 +1901,59 @@ Cuando el proceso de cálculo obtiene su bloque de disco, se ejecuta durante otr
 
 El resultado neto es que cada proceso de I/O puede leer un bloque por segundo y tardará 1000 segundos en terminar. Con un algoritmo de planificación que se adelantara al proceso de cálculo cada 10 mseg, los procesos de I/O terminarían en 10 seg en lugar de 1000 seg y sin ralentizar mucho el proceso de cálculo.
 
+#### Shortest Job First
+
+Veamos ahora otro algoritmo por lotes no preventivo que asume que los tiempos de ejecución se conocen de antemano. En una compañía de seguros, por ejemplo, la gente puede predecir con bastante exactitud cuánto tardará en tramitarse un lote de 1000 reclamaciones, dado que se realiza un trabajo similar todos los días. Cuando hay varios trabajos igual de importantes en la cola de entrada esperando a ser iniciados, el planificador escoge primero el **shortest job first**. Veamos la figura 2-41, acá podemos encontrar 4 trabajos A, B , C y D con tiempos de ejecución de 8, 4, 4 y 4 minutos respectivamente. Si ejecutamos estos procesos en dicho orden, el tiempo de respuesta para A es de 8 minutos, para B es de 12 minutos, para C es de 16 minutos y para D es de 20 minutor con un promedio de 14 minutos.
+
+![imagen2.41](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-41.png?raw=true)
+
+
+Ahora consideremos ejecutar estos 4 procesos usando el shortest job first, como se ve en la figura 2-41(b). Los tiempos de respuesta ahora son de 4, 8, 12 y 20 minutos con un promedio de 11 minutos. Shortest job first es probablemente óptimo. Consideremos el caso de 4 trabajos coin tiempos de ejecución de a, b, c y d respectivamente. El primer trabajo termina con un tiempo a, el segundo con a +b y así sucesivamente. El promedio de tiempo de espera es de (4a + 3b + 2c +d)/4. Es claro que a contribuye más al promedio  que los otros tiempos, entonces tiene que ser el trabajo más corto, seguido de b, luego c y finalmente d como el más largo dado que este afectá más al tiempo promedio. Los mismos argumentos aplican para cualquier número de trabajos.
+
+Cabe señalar que el trabajo más corto primero solo es óptimo cuando todos los trabajos están disponibles simultáneamente. Veamos un contraejemplo, consideremos 5 trabajos de A hasta E con tiempos de trabajo 2, 4, 1, 1 y 1 respectivamente. Sus tiempos de llegada con 0,0,3,3 y 3. Inicialmente solo A y B pueden ser reprogramados, dado que los otros trabajos todavía no están disponibles. Usando el trabajo más corto primero, vamos a ejecutar los trabajos en el orden A,B, C, D, E con un promedio de 4.6. De todos modos, ejecutar en el orden B, C, D, E, A tiene un promedio de 4.4.
+
+#### Shortest Remaining Time Next
+
+Una versión preferente del shortest time first es el **shortest remaining time next**. Con este algoritmo, el planificador siempre va a escoger al proceso cuyo tiempo de ejecución restante es el más corto. También en este caso, el tiempo de ejecución debe conocerse de antemano. Cuando llega un nuevo trabajo, su tiempo total se compara con el tiempo restante del proceso actual. Si el nuevo trabajo necesita menos tiempo para terminar que el proceso actual, se suspende el proceso actual y se inicia el nuevo trabajo. Este esquema permite que los nuevos trabajos cortos obtengan un buen servicio.
+
+### 2.4.3 Scheduling in Interactive Systems
+
+Vamos a ver algunos algoritmos que pueden ser usados en sistemas interactivos. Estos son comunes en computadoras personales, servidores y otros tipos de sistemas.
+
+#### Round-Robin Scheduling
+
+Uno de los algoritmos más antiguos, sencillos, justos y utilizados es el **round robin**. A cada proceso se le asigna un intervalo de tiempo, llamado **quantum**, durante el cual puede ejecutarse. Si el proceso sigue en marcha al final del quantum, la CPU se adelanta y se da a otro proceso. Si el proceso es bloqueado o es finalizado antes de que el quantum haya pasado, el cambio de CPU se da cuando el procesose haya bloqueado o finalizado. Round robin es fácil de implementar. Todo lo que el planificador necesita hacer es mantener una lista de procesos ejecutables, como se muestra en la Fig. 2-42(a). Cuando el proceso agota su quantum, se coloca al final de la lista, como se muestra en la Fig. 2-42(b). El único problema realmente interesante del round robin es la duración del quantum. Pasar de un proceso a otro requiere cierto tiempo para realizar toda la administración- guardar y cargar registros y mapas de memoria, actualizar varias tablas y listas, vaciar y recargar la memoria caché, etc.
+
+![imagen2.42](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-42.png?raw=true)
+
+Supongamos que este **process switch** o **context switch**, como es llamado aveces, toma 1 msec, incluyendo cambiar los mapas de memoria, vaciar y recargar la caché, etc. También supongamos que un quantum es de 4msec. Con estos parámetros, después de realizar 4msec de arduo trabajo, la CPU tendrá que gastar(es decir, desperdiciar) 1 mse en el cambio de proceso. Entonces 20% del tiempo en CPU se tomará como overhead administrativo. Esto es demasiado.
+
+Para mejorar la eficiencia, cambiemos el quantum a 100 msec. Ahora el tiempo de desperdicio es del 1%. Pero piense en lo que ocurre en un sistema servidor si entran 50 peticiones en un intervalo de tiempo muy corto y con requisitos de CPU muy variables. Si la CPU está inactiva, la primera va a comenzar inmediatamente, la segunda no va a comenzar hasta 100 msec después. El desafortunado último puede tener que esperar 5 segundos antes de tener una oportunidad, suponiendo que todos los demás utilicen todos sus quantums. La mayoría de usuarios percibirán como lenta una solicitud de 5 segundos a una orden corta. Esta situación es especiamente mala si algunas de las peticions cercanas al final tienen solo unos milisegundos de tiempo de CPU. Con un quantum corto, habrían obtenido un mejor servicio.
+
+Otro factor es que si el quantum se fija más largo que la ráfaga media de la CPU, el adelantamiento no ocurrirá muy a menudo. En su lugar, la mayoría de los procesos realizarán una operación de bloqueo antes de que se agote el quantum, provocando un cambio de proceso. La eliminación del adelantamiento mejora el rendimiento porque los cambios de proceso sólo se producen cuando son lógicamente necesarios, es decir, cuando un proceso se bloquea y no puede continuar.
+
+La conclusión se puede formular como: tener un quantum muy corto puede causar muchos cambios de procesos, los cuales pueden disminuir la eficiencia de la CPU, pero tener quantums muy largos pueden causar una pobre respuesta a solicitudes de procesos interactivos cortos. Un quantum alrededor de 20-50 msec es una opción razonable.
+
+#### Priority scheduling
+
+Round-robin scheduling asume implícitamente que todos los procesos son igual de importantes. Con frecuencia, las personas que poseen y manejan ordenadores multiusuario tienen ideas muy distintas al respecto. En una universidad, por ejemplo, el orden jerárquico puede ser primero el presidente, luego los decanos de la facultad, después los profesores, las secretarias, los conserjes y por último, los estudiantes. La necesidad de tener en cuenta factores externos conduce a la programación prioritaria. La idea básica es sencilla: a cada proceso se le asigna una prioridad, y el proceso ejecutable con la prioridad más alta puede ejecutarse. 
+
+Incluso en una PC con un único propietario, pueden haber múltiples procesos, algunos de ellos más importantes que otros. Por ejemplo, a un proceso daemon que envía correo electrónico en segundo plano se le debe asignar una prioridad menor que a un proceso que muestra una película de video en la pantalla en tiempo real.
+
+Para prevenir que los procesos de alta prioridad se ejecuten indefinidamente, el planificador puede reducir la prioridad del proceso actual en cada tick de clock(por ejemplo clada clock interrupt). Alternativamente, a cada proceso se le puede asignar un quantum de tiempo máximo que se le permite ejecutar. Cuando este quantum se agota, el siguiente proceso de mayor prioridad tiene la oportunidad de ejecutarse.
+
+Las prioridades pueden ser asignadas a los procesos de forma estática o dinámica. En una computadora militar, los procesos iniciados por los generales podrían comenzar en prioridad 100, los procesos iniciados por los coroneles podrían comenzar en prioridad 90, mayores en 80, capitanes con 70, tenientes con 60 y así sucesivamente. Alternativamente, un centro comercial computacional puede tener procesos de alta prioridad con un costo de 100$ la hora, prioridad media 75$ la hora, y la baja prioridad 50$ la hora.  
+
+El sistema UNIX tiene un comando, nice, que permite a un usuario reducir voluntariamente la prioridad de su proceso, para ser amable con los demás usuarios. Nadie
+lo utiliza nunca.
+
+Las prioridades pueden ser asignadas dinámicamente por el sistema para lograr ciertos objetivos del sistema. Por ejemplo, algunos procesos están muy ligados al I/O y pasan la mayor parte de su tiempo esperando a que se complete el I/O. Siempre que un proceso de este tipo quiera la CPU, se le debe dar la CPU inmediatamente, para permitirle iniciar su siguiente petición de I/O, que puede entonces proceder en paralelo con otro proceso que esté realmente computando. Hacer que el proceso de I/O espere mucho tiempo por la CPU, solo significa tenerlo ocupando memoria durante un tiempo innecesariamente largo. Un algoritmo simple para dar un buen servicio a los procesos vinculados a los I/O es setear la prioridad en 1/f donde f es la fracción del último quantum que utilizó un proceso. Un proceso que solo usó 1 msec de los 50 msec de quantum, tendrá una prioridad de 50, mientras que un proceso que usó 25 msec antes de bloquearse obtendrá una prioridad 2 y el proceso que usó todo el quantum tendrá una prioridad 1.
+
+A menudo es conveniente agrupar los procesos en clases prioritarias y utilizar la programación prioritaria entre las clases, pero la programación round-robin dentro de cada clase. La figura 2-43 muestra un sistema con 4 clases de prioridad. 
+
+![imagen2.43](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-43.png?raw=true)
+
+El algoritmo de programación es el siguiente: mientras haya procesos ejecutables en la clase de prioridad 4, ejecute cada uno de ellos durante un quantum, de forma round-robin y no se moleste nunca con las clases de prioridad inferior. Si la clase de prioridad 4 está vacía, ejecute los procesos de la clase 3 con round robin. Si las clases 4 y 3 están vacías, entonces ejecute la clase 2 en round robin y así sucesivamente. Si las prioridades no se ajustan de vez en cuando, las clases de prioridad pueden morir de hambre.
 
 #### Multiple Queues
 
