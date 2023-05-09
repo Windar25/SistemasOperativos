@@ -1900,6 +1900,82 @@ Sin embargo, el orden de llegada tambien tiene una gran desventaja. Supongamos q
 Cuando el proceso de cálculo obtiene su bloque de disco, se ejecuta durante otro segundo, seguido por todos los procesos de I/O en rápida sucesión.
 
 El resultado neto es que cada proceso de I/O puede leer un bloque por segundo y tardará 1000 segundos en terminar. Con un algoritmo de planificación que se adelantara al proceso de cálculo cada 10 mseg, los procesos de I/O terminarían en 10 seg en lugar de 1000 seg y sin ralentizar mucho el proceso de cálculo.
+
+
+#### Multiple Queues
+
+Uno de los primeros planificadores de prioridades fue el CTSS, el M.I.T. Compatible TimeSharing System que funcionaba en el IBM 7094 (Corbato'et al., 1962). CTSS tenía el problema de que la conmutación entre procesos era lenta porque el 7094 sólo podía contener un proceso en memoria. Cada cambio significaba intercambiar el proceso actual al disco y leer uno nuevo del disco. Los diseñadores de CTSS se dieron cuenta rápidamente que era más eficiente dar a los procesos ligados a la CPU un quantum más grande de vez en cuando, en lugar de darles quantums pequeños frecuentemente(para reducir el intercambio). Por otro lado, dar a todos los procesos un quantum grande puede significar tener un tiempo de respuesta pobre, como acabamos de ver. Su solución fue implementar clases de prioridad. Procesos en la prioridad más alta tendrán todo un quantum para ejecutarse. Procesos en el siguiente nivel más alto tendrán un tiempo de ejecución de hasta 2 quantums, los siguiente procesos tendrán un tiempo máximo de 4 quantums y así sucesivamente. Cuando un proceso usa todo el quantum asignado, este desciende de clase. A modo de ejemplo, consideremos un proceso el cual necesita usar la CPU continuamente por 100 quanta. Inicialmente se le daría un quantum y luego cambiaría. La siguiente vez recibiría 2 quantums antes de ser intercambiado. En las siguientes obtendría 4, 8, 32 y 64 quantums, aunque solo hubiera utilizado 37 de los 64 quantums finales para completar su trabajo. Solo se necesitarían 7 cambios (incluyendo la carga inicial) en vez de 100 con un algoritmo puro de round-robin. Además, a medida que el proceso se hundiera más y más en las colas de prioridad, se ejecutaría cada vez con menos frecuencia, ahorrando a la CPU, procesos cortos e interactivos. 
+
+Dicha política fue adoptada para evitar castigar a los procesos que tengan que ejecutarse por un tiempo muy largo cuando se iniciaron por primera vez, peor que se volvió interactivo más tarde. Siempre que se de un return(Enter) en la terminal, el proceso perteneciente a ese terminal fue movido a la clase de mayor prioridad, asumiendo que estaba a punto de convertirse en interactivo. Un día un usuario con un proceso que consumía mucha CPU descubrió que sentarse en la terminal y teclear carriage returns al azar cada pocos segundos, hacía maravillas con su tiempo de respuesta. Se lo contó a todos sus amigos. Ellos se lo contaron a todos sus amigos. Moraleja de la historia: hacerlo bien en la práctica es mucho más difícil que hacerlo al principio.
+
+#### Shortest Process Next
+
+Dado que los trabajos cortos siempre producen el menor tiempo de respuesta promedio para los sistemas de lotes, estaría poder usarlos en los procesos interactivos. Hasta cierto punto, es posible. Los procesos interactivos suelen seguir el patrón de esperar comando, ejecutar comandos, esperar comando, etc. Si consideramos la ejecución de cada comando como un "trabajo" independiente, podemos minimizar el tiempo de respuestas total ejecutando primero el más corto. El problema es averiguar cual de los procesos actualmente ejecutables es el más corto.
+
+Un enfoque consiste en hacer estimaciones basadas en el comportamiento pasado y ejecutar el proceso con el tiempo de ejecución estimado más corto. Supongamos que el tiempo estimado por comando para un proceso es T0. Luego supongamos que su siguiente instrucción es T1. Podríamos actualizar nuestra estimación tomando una suma ponderada de estos 2 números, es decir a*T0 + (1 - a)T1. Mediante la elección de a podemos decidir que el proceso de estimación olvide rápidamente las ejecuciones antiguas o que las recuerde por mucho tiempo. Con a = 1/2 obtenemos la siguiente sucesión
+
+    T0, T0/2 + T1/2, T0/4 + T1/4 + T2/2, T0/8 + T1/8 + T2/4 + T3/2
+
+Después de 3 neuvos turnos, el peso de T0 ha disminuido a 1/8. La técnica de estimar el siguiente valor de una serie tomando la media ponderada del valor medido actual y la estimación anterior se denomina aveces envejecimiento. Es aplicable a muchas situaciones en las que debe hacerse una predicción basada en valores anteriores. El envejecimiento es especialmente fácil de aplicar cuando a= 1/2. Basta con sumar el nuevo valor a la estimación actual y dividir la suma por 2(desplazamiento de un bita la derecha).
+
+#### Guaranteed Scheduling
+
+Un enfoque completamente distinto a la planificación consiste en hacer promesas reales a los usuarios sobre rendimiento y luego cumplirlas. Una promesa realista y fácil de cumplir es la siguiente: Si hay n usuarios conectados mientras estás trabajando, recibirás aproximadamente 1/n de la potencia de la CPU. De forma similar, en un sistema de single-user con n procesos ejecutándose, debería ser igual, cada proceso obtendría 1/n ciclos de CPU. Parece justo.
+
+Para ser buenos en esta promesa, el sistema debe mantener la cuenta de cuanto CPU debe tener cada proceso desde que se crea. A continuación, calcula la cantidad de CPU a la que cada uno tiene derecho, es decir, el tiempo transcurrido desde la creación divido entre n. Dado que también se conoce la cantidad de tiempo de CPU que cada proceso ha tenido realmente, es bastante sencillo calcular la relación entre el tiempo de CPU real consumido y el tiempo de CPU al que tiene derecho. Un ratio de 0,5 significa que un proceso solo ha tenido la mitad de lo que debería haber tenido, y un ratio de 2,0 significa que un proceso ha tenido el doble de lo que le correspondía. El algoritmo consiste en ejecutar el proceso con el ratio más bajo hasta que su ratio supere al de su competidor más cercano. A continuación este es escogido para ejecutarse.
+
+#### Lottery scheduling 
+
+Mientras que algunos hacen promesas a los usuarios y luego cumplirlas es buena idea, es difícil de implementar. Sin embargo, se puede usar otro algoritmo para dar de manera resultados predecibles similares con una implementación mucho más simple. Esta es llamada **lottery scheduling**.
+
+La idea básica es dar a los procesos tickets de lotería para varios recursos del sistema como el tiempo del CPU. Cuando una decisión de planificación es tomada, se toma un ticket de lotería de forma aleatoria, y el proceso que tiene el ticket es el que accede al recurso. Luego, hablando del planificador del CPU, este puede tener 50 tickets de lotería por segundo, con cada ganador con 20msec de tiempo en el CPU como premio.
+
+Parafraseando a George Orwell: "Todos los procesos son iguales, pero algunos procesos son más iguales". Los procesos más importantes tendrán tickets extra, para incrementar sus posibilidades de ganar. Si hay 100 tickets pendientes y un proceso tiene 20 de esos, este tiene 20% de probabilidades de anar cada lotería. A largo plazo, este tiene 20% del tiempo en CPU. En contraste con el priority scheduler, donde es bastante dificil tener una prioridad de 40, aquí la regla es clara: un proceso que contiene una fracción f de los tickets, obtendrá aproximadamente una fracción f del recurso en cuestión.
+
+Lottery scheduling tiene varias propiedades interesantes. Por ejemplo, si aparece un nuevo proceso y se le otorgan nuevos boletos, en la próxima lotería tendrá una posibilidad de ganar en proporción al número de entradas que posee. En otras palabras, la programación de lotería es altamente receptiva.
+
+Los proces que cooperan pueden intercambiar tickets si ellos desean. Por ejemplo, cuando un proceso de cliente envia un mensaje a un proceso de servidor y luego se bloquea, este probablemente le haya dado todos sus tickets a dicho proceso para aumentar las posibilidades de que el servidor se ejecute después. Cuando el servidor finalice, este retorna los tickets al cliente  para que esta pueda continuar ejecutándose. En ausencia de los clientes, los servidores no necesitan tickets en absolutos.
+
+Lottery scheduling puede ser usado para resolver problemas que son difíciles de manejar con otros métodos. Un ejemplo es un servidor de videos en el cual varios procesos  están alimentando secuencias de video a sus clientes, pero a diferentes velocidades de fotogramas. Supongamos que los procesos necesitan fotogramas a 10, 20, 35 fotogramas/seg. Mediante la asignación a estos procesos con 10, 20, 25 tickets respectivamente, ellos automáticamente dividirán a la CPU en la proporción correcta, la cual es: 10, 20 y 25.
+
+#### Fair-Share Scheduling
+
+Hasta ahora hemos asumido está planificado por su cuenta, sin importar quien sea su propietario. Como resultado si un usuario 1 comienza 9 procesos y un usuario 2 comienza un proceso, con round-robin o prioridads iguales el usuario 1 tiene 90% de la CPU y el usuario 2 solo el 10%.
+
+Para evitar esta situación, algunos sistemas, tienen en cuenta qué usuario posee un proceso antes de planificarlo. En este modelo, cada usuario esta asignado con una fracción de la CPU y el planificador toma procesos de tal manera que se cumplan. Entonces si a 2 usuarios se les ha prometido el 50% de la CPU, cada uno obtendrá eso, no importa cuantos procesos tengan en existencia.
+
+A modo de ejemplo, consideremos un sistema con 2 usuarios, a cada uno se le ha prometido el 50% de la CPU. El usuario 1 tiene 4 procesos, A, B, C y D, el usuario 2 tiene solo un proceso E. Si se usa el round robin, una posible secuencia de planificacion que cumple con todas las restricciones esta:
+
+A E B E C E D E A E B E C E D E...
+
+Por otro lado, si el usuario 1 tiene derecho al doble de tiempo de CPU que el usuario 2:
+
+A B E C D E A B E C D E ..
+
+Existen numerosas posibilidades, y pueden ser exploradas según la noción de equidad que se tenga.
+
+### 2.4.4 Scheduling in Real-Time Systems
+
+Un sistema **real-time** es uno en el cual el tiempo juega un rol esencial. Normalmente, uno o varios dispositivos físicos externos al ordenador generán estímulos y el ordenador debe reaccionar adecuadamente a ellos en un tiempo determinado. Por ejemplo, la computadora de un reproductor de discos compactos recibe los bits a medida que salen de la unidad y debe convertirlos en música en un intervalo de tiempo muy cerrado. Si el cálculo toma mucho tiempo, la música puede sonar peculiar. Otros sistemas de tiempo real son los monitores de los pacientes en la unidad de cuidados intensivos de un hospital, el piloto automático de un avión y el control de robots en una fábrica automatizada. En todos estos casos, tener la respuesta correcta, pero tenerla en un tiempo muy prolongado puede ser tan malo como no tenerla en absoluto.
+
+Los sistemas en tiempo real se suelen clasificar en **hard real time**, es decir, que hay plazos absolutos que deben cumplirse y **soft real time**, es decir, que el incumplimiento ocasional de un plazo no es deseable, pero sí tolerable. En ambos casos, el comportamiento en tiempo real se consigue dividiendo el programa en varios procesos, cada uno de los cuales tiene un comportamiento predecible y conocido de antemano. Estos procesos suelen ser de corta duración y pueden completarse en menos de un segundo. Cuando se detecta un evento externo, la tarea del planificador consiste en planificar los procesos de forma en que se cumplan todos los plazos.
+
+Los eventos a los que debe responder un sistema en tiempo real pueden clasificarse en **periódicos** (es decir, que se producen a intervalos regulares) o **aperiódicos**(es decir, que se producen de forma impredecible). Un sistema puede tener que responder a múltiples flujos de eventos periódicos. Dependiendo del tiempo que requiera el procesamiento de cada evento, puede que ni siquiera sea posible gestionarlos todos.Por ejemplo, si hay m eventos periódicos y el evento i ocurre con un periodo Pi y requiere Ci segundos de CPU para manejar cada evento, entonces la carga sólo se puede manejar si.
+
+ m
+ Σ Ci/Pi ≤ 1
+i=1
+
+Un sistema en tiempo real que tenga este criterio es llamado **planificable**. Esto significa que puede ser implementado. Un proceso que falla ante este test no puede ser programable dado que el tiempo total de CPU que el proceso busca colectivamente es mayor que el que el CPU puede brindar.
+
+Como ejemplo, consideremos un soft real-time system con 3 eventos periódicos, con periodos de 100, 200 y 500 msec, respectivamente. Si este sistema necesitara 50, 30 y 100 msec de tiempo en CPU por evento. El sistema es planificable dado que 0.5 + 0.15 + 0.2 < 1. Si un cuarto evento de un periodo de 1 sec es añadido, el sistema va a seguir siendo planificable hasta que este evento no necesite más de 150 msec de tiempo en CPU por evento. Se asume implícitamente que la sobrecarga de cambio de contexto es tan pequeña que se puede ignorar.
+
+Los algoritmos de planificación real-time pueden ser estáticos o dinámicos. Estos últimos toman sus decisiones de planificación en tiempo de ejecución, una vez iniciada la ejecución. La planificación estática solo funciona cuando se dispone de información perfecta de antemano sobre el trabajo que hay que hacer y los plazos que hay que cumplir. Los algoritmos de programación dinámica no tienen estas restricciones.
+
+Hasta ahora, hemos asumido tácticamente que todos los proceso del sistema pertenecen a distintos usuarios y, por tanto, compiten por la CPU. Aunque esto suele ser cierto, a veces ocurre que un proceso tiene muchos hijos ejecutándose bajo su control. Por ejemplo, un proceso de sistema de gestión de base de datos puede tener muchos hijos. Cada hijo puede estar trabajando en una solicitud diferente, o cada uno puede tener alguna función específica que realizar(análisis de consulta de datos, acceso a disco, etc.).
+### 2.4.5 Policy Versus Mechanism
+
+
 ## APUNTES DE CLASE
 
 En el archivo se relacionado nombre con un nodo-i. 
