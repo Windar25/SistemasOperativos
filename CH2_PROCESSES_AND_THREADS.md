@@ -1205,6 +1205,20 @@ difíciles de explicar.
 
 ### 2.3.2 Critical Regions
 
+¿Cómo evitamos las race condition? La regla para prevenir problemas acá y en otras situaciones que tengan que ver con memoria, archivos y todo loo que sea compartido es prohibir a uno o mas procesos la lectura y escritura de datos simultanea. En otras palabras, necesitamos **exclusión mutua**, esto es una forma de asegurar de que mientras un proceso está usando una variable o archivo compartido, los demás procesos van a ser excluidos de usar el mismo file o variable. El problema anterior surgió dado que el proceso B comenzó a usar una variable compartida antes de que el proceso A termine de usarla. La elección de las operaciones primitivas apropiadas para lograr la exclusión mutua es una cuestión de diseño importante en cualquier sistema operativo, y un tema que examinaremos con gran detalle en las siguientes secciones.
+
+El problema de evitar las race condition puede ser formulada de forma abstracta. Parte del tiempo, un proceso está ocupado realizando cálculos  u operaciones internas que no nos llevan a race condition. De todos modos, el proceso pued acceder a memoria o archivos compartidos, o algún lugar crítico que nos lleve a la condición de carrera. Esa parte del programa donde la memoria compartida es accedida es llamada **critical region** o **critical section**. Si pudiéramos organizar las cosas de forma que nunca hubiera dos procesos en sus regiones críticas al mismo tiempo, podríamos evitar las carreras.
+
+Aunque este requisito evita las condiciones de carrera, no es suficiente para que los procesos paralelos cooperen correcta y eficientemente utilizando datos compartidos. Necesitamos que se cumplan cuatro condiciones para tener una buena solución: 
+1.  No deben haber 2 procesos simultáneamente en sus regiones críticas.
+2.  No se pueden hacer suposiciones sobre las velocidades o el número de CPU.
+3.  Ningún proceso que esté afuera de su sección crítica debe poder bloquear algún proceso.
+4.  Ningún proceso debería tener que esperar eternamente para entrar en su región crítica.
+
+Este comportamiento es el que queremos mostrar en la figura 2-22. Acá el proceso A entra a la región crítica en el momento T1. Tiempo después en un tiempo B, el proceso B trata de entrar a la región crítica, pero falla porque otro proceso ya está en la región crítica y solo vamos a permitir que solo uno acceda a la vez. Consecuentemente, B es suspendido temporalmente, hasta un tiempo T3, donde A deje su región crítica, permitiendo a B entrar inmediatamente. Eventualmente, B deja la sección crítica en un tiempo T4 y nos encontramos en la situación inicial de no tener proceso en la región crítica.
+
+![figura2.22](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-22.png?raw=true)
+
 ### 2.3.3 Mutual Exclusion with Busy Waiting
 
 En esta sección vamos a examinar varias propuestas para lograr la exclusión mutua de tal modo que 
@@ -1899,7 +1913,11 @@ Lo bueno de este algoritmo es que es fácil de entender y fácil de programa. Ta
 Sin embargo, el orden de llegada tambien tiene una gran desventaja. Supongamos que hay un proceso de cálculo que se ejecuta durante 1 segundo cada vez y muchos procesos de I/O que utilizan poco tiempo de CPU, pero cada uno tiene que realizar 1000 lecturas de disco para completar. El proceso de cálculo se ejecuta durante un segundo, luego lee un bloque del disco. Todos los procesos de I/O se ejecutan y comienzan a leer el disco.
 Cuando el proceso de cálculo obtiene su bloque de disco, se ejecuta durante otro segundo, seguido por todos los procesos de I/O en rápida sucesión.
 
+<<<<<<< HEAD
 El resultado neto es que cada proceso de I/O puede leer un bloque por segundo y tardará 1000 segundos en terminar. Con un algoritmo de planificación que se adelantara al proceso de cálculo cada 10 mseg, los procesos de I/O terminarían en 10 seg en lugar de 1000 seg y sin ralentizar mucho el proceso de cálculo.
+=======
+El resultado neto es que cada proceso de I/O puede leer un bloque por segundo y tardará 1000 segundos en terminar. Con un algoritmo de planificación que se adelantara al proceso de cálculo cada 10 mseg, los procesos de I/O terminarían en 10 seg en lugar de 1000 seg y sin ralentizar mucho el proceso de cálculo. 
+>>>>>>> 9bf386f (update L3)
 
 #### Shortest Job First
 
@@ -1956,6 +1974,7 @@ A menudo es conveniente agrupar los procesos en clases prioritarias y utilizar l
 El algoritmo de programación es el siguiente: mientras haya procesos ejecutables en la clase de prioridad 4, ejecute cada uno de ellos durante un quantum, de forma round-robin y no se moleste nunca con las clases de prioridad inferior. Si la clase de prioridad 4 está vacía, ejecute los procesos de la clase 3 con round robin. Si las clases 4 y 3 están vacías, entonces ejecute la clase 2 en round robin y así sucesivamente. Si las prioridades no se ajustan de vez en cuando, las clases de prioridad pueden morir de hambre.
 
 #### Multiple Queues
+<<<<<<< HEAD
 
 Uno de los primeros planificadores de prioridades fue el CTSS, el M.I.T. Compatible TimeSharing System que funcionaba en el IBM 7094 (Corbato'et al., 1962). CTSS tenía el problema de que la conmutación entre procesos era lenta porque el 7094 sólo podía contener un proceso en memoria. Cada cambio significaba intercambiar el proceso actual al disco y leer uno nuevo del disco. Los diseñadores de CTSS se dieron cuenta rápidamente que era más eficiente dar a los procesos ligados a la CPU un quantum más grande de vez en cuando, en lugar de darles quantums pequeños frecuentemente(para reducir el intercambio). Por otro lado, dar a todos los procesos un quantum grande puede significar tener un tiempo de respuesta pobre, como acabamos de ver. Su solución fue implementar clases de prioridad. Procesos en la prioridad más alta tendrán todo un quantum para ejecutarse. Procesos en el siguiente nivel más alto tendrán un tiempo de ejecución de hasta 2 quantums, los siguiente procesos tendrán un tiempo máximo de 4 quantums y así sucesivamente. Cuando un proceso usa todo el quantum asignado, este desciende de clase. A modo de ejemplo, consideremos un proceso el cual necesita usar la CPU continuamente por 100 quanta. Inicialmente se le daría un quantum y luego cambiaría. La siguiente vez recibiría 2 quantums antes de ser intercambiado. En las siguientes obtendría 4, 8, 32 y 64 quantums, aunque solo hubiera utilizado 37 de los 64 quantums finales para completar su trabajo. Solo se necesitarían 7 cambios (incluyendo la carga inicial) en vez de 100 con un algoritmo puro de round-robin. Además, a medida que el proceso se hundiera más y más en las colas de prioridad, se ejecutaría cada vez con menos frecuencia, ahorrando a la CPU, procesos cortos e interactivos. 
 
@@ -2027,6 +2046,12 @@ Los algoritmos de planificación real-time pueden ser estáticos o dinámicos. E
 
 Hasta ahora, hemos asumido tácticamente que todos los proceso del sistema pertenecen a distintos usuarios y, por tanto, compiten por la CPU. Aunque esto suele ser cierto, a veces ocurre que un proceso tiene muchos hijos ejecutándose bajo su control. Por ejemplo, un proceso de sistema de gestión de base de datos puede tener muchos hijos. Cada hijo puede estar trabajando en una solicitud diferente, o cada uno puede tener alguna función específica que realizar(análisis de consulta de datos, acceso a disco, etc.).
 ### 2.4.5 Policy Versus Mechanism
+=======
+-------
+Uno de los primeros planificadores de prioridad se encontraban en CTSS, en M.I.T. Compatible TimeSharing System que funcionaba en el IBM 7094 (Corbató et al., 1962). CTSS tenía el problema de que el cambio de proceso era lento debido a que 7094 podía tener solo un proceso en memoria. Cada cambio significaba intercambiar el proceso actual al disco y leer uno nuevo del disco. Los diseñadores del CTSS rápidamente se dieron cuenta que era más eficiente dar a los procesos ligados a CPU un quantum más grande de vez en cuando, en lugar de darles quantus pequeños frecuentemente (para reducir el intercambio). Por otro lado, dar a todos los procesos un quantum grande significaría un tiempo de respuesta deficiente, como ya hemos visto. Su solución fue establecer clases de prioridad. Los procesos de la clase inmediatamente superior se ejecutaban durante 4 quantums, etc. Cuando un proceso agotaba todos los quantums que tenía asignado, descendía de clase.
+
+
+>>>>>>> 9bf386f (update L3)
 
 
 ## APUNTES DE CLASE
