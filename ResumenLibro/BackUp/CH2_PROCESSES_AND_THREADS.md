@@ -1974,7 +1974,6 @@ A menudo es conveniente agrupar los procesos en clases prioritarias y utilizar l
 El algoritmo de programación es el siguiente: mientras haya procesos ejecutables en la clase de prioridad 4, ejecute cada uno de ellos durante un quantum, de forma round-robin y no se moleste nunca con las clases de prioridad inferior. Si la clase de prioridad 4 está vacía, ejecute los procesos de la clase 3 con round robin. Si las clases 4 y 3 están vacías, entonces ejecute la clase 2 en round robin y así sucesivamente. Si las prioridades no se ajustan de vez en cuando, las clases de prioridad pueden morir de hambre.
 
 #### Multiple Queues
-<<<<<<< HEAD
 
 Uno de los primeros planificadores de prioridades fue el CTSS, el M.I.T. Compatible TimeSharing System que funcionaba en el IBM 7094 (Corbato'et al., 1962). CTSS tenía el problema de que la conmutación entre procesos era lenta porque el 7094 sólo podía contener un proceso en memoria. Cada cambio significaba intercambiar el proceso actual al disco y leer uno nuevo del disco. Los diseñadores de CTSS se dieron cuenta rápidamente que era más eficiente dar a los procesos ligados a la CPU un quantum más grande de vez en cuando, en lugar de darles quantums pequeños frecuentemente(para reducir el intercambio). Por otro lado, dar a todos los procesos un quantum grande puede significar tener un tiempo de respuesta pobre, como acabamos de ver. Su solución fue implementar clases de prioridad. Procesos en la prioridad más alta tendrán todo un quantum para ejecutarse. Procesos en el siguiente nivel más alto tendrán un tiempo de ejecución de hasta 2 quantums, los siguiente procesos tendrán un tiempo máximo de 4 quantums y así sucesivamente. Cuando un proceso usa todo el quantum asignado, este desciende de clase. A modo de ejemplo, consideremos un proceso el cual necesita usar la CPU continuamente por 100 quanta. Inicialmente se le daría un quantum y luego cambiaría. La siguiente vez recibiría 2 quantums antes de ser intercambiado. En las siguientes obtendría 4, 8, 32 y 64 quantums, aunque solo hubiera utilizado 37 de los 64 quantums finales para completar su trabajo. Solo se necesitarían 7 cambios (incluyendo la carga inicial) en vez de 100 con un algoritmo puro de round-robin. Además, a medida que el proceso se hundiera más y más en las colas de prioridad, se ejecutaría cada vez con menos frecuencia, ahorrando a la CPU, procesos cortos e interactivos. 
 
@@ -2046,13 +2045,80 @@ Los algoritmos de planificación real-time pueden ser estáticos o dinámicos. E
 
 Hasta ahora, hemos asumido tácticamente que todos los proceso del sistema pertenecen a distintos usuarios y, por tanto, compiten por la CPU. Aunque esto suele ser cierto, a veces ocurre que un proceso tiene muchos hijos ejecutándose bajo su control. Por ejemplo, un proceso de sistema de gestión de base de datos puede tener muchos hijos. Cada hijo puede estar trabajando en una solicitud diferente, o cada uno puede tener alguna función específica que realizar(análisis de consulta de datos, acceso a disco, etc.).
 ### 2.4.5 Policy Versus Mechanism
-=======
--------
-Uno de los primeros planificadores de prioridad se encontraban en CTSS, en M.I.T. Compatible TimeSharing System que funcionaba en el IBM 7094 (Corbató et al., 1962). CTSS tenía el problema de que el cambio de proceso era lento debido a que 7094 podía tener solo un proceso en memoria. Cada cambio significaba intercambiar el proceso actual al disco y leer uno nuevo del disco. Los diseñadores del CTSS rápidamente se dieron cuenta que era más eficiente dar a los procesos ligados a CPU un quantum más grande de vez en cuando, en lugar de darles quantus pequeños frecuentemente (para reducir el intercambio). Por otro lado, dar a todos los procesos un quantum grande significaría un tiempo de respuesta deficiente, como ya hemos visto. Su solución fue establecer clases de prioridad. Los procesos de la clase inmediatamente superior se ejecutaban durante 4 quantums, etc. Cuando un proceso agotaba todos los quantums que tenía asignado, descendía de clase.
 
+Hasta ahora, hemos asumido tácticamente que todos los procesos del sistema pertenecen a distintos usuarios y por tanto, compiten por la CPU. Aunque aveces esto es cierto, puede suceder que un proceso tiene muchos hijos ejecutándose bajo su control. Por ejemplo, una proceso de gestión de bases de datos puede tener muchos hijos. Cada uno puede estar tratando una solicitud diferente, o cada uno puede tener alguna función específica que realizar(análisis de consultas, acceso a disco, etc). Es perfectamente posible que el proceso principal tenga una idea excelente de cuales son sus hijos más importantes(o los que más tiempo consumen) y cuáles son los menos importante. Sin embargo, ninguno de los planificadores mencionados acepta información de los procesos de usuario sobre las decisiones de planificación. Como resultado, el planificador no siempre toma la mejor decisión.
 
->>>>>>> 9bf386f (update L3)
+La solución a este problema es separa el **scheduling mechanism** de la **scheduling policy**, un principio establecido desde hace tiempo. Esto significa que el algoritmo de planificación está parametrizado de alguna manera, pero los parámetros pueden ser completados por los procesos del usuario. Consideremos un nuevo ejemplo de la base de datos. Supongamos que el núcleo utiliza un algoritmo de planificación por prioridades, pero proporciona una llamada al sistema mediante la cual un proceso puede establecer y cambiar las prioridades de sus hijos. De este modo, el padre puede controlar como se planifican sus hijos, aunque el mismo no realice la programación. En este caso, el mecanismo está en el núcleo, pero la política la establece un proceso de usuario. Policy-mechanism es una gran idea.
 
+### 2.4.6 Thread Scheduling
+
+Cuando varios procesos tienen varios hilos cada uno, tenemos 2 niveles de paralelismo presentes: proceso e hilos. La planificación de estos sistemas difiere sustancialmente dependiendo de si se soportan hilos a nivel usuario o a nivel del kernel(o ambos).
+
+Primero consideremos los hilos a nivel de usuario. Dado que el kernel no es consciente de la existencia de los hilos, opera como siempre lo hace, eligiendo un proceso, digamos, A y dándole a A el control de su quantum. El planificador de hilos en A decide que hilo va a ejecutar, digamos A1. Dado que no hay interupciones de reloj para los hilos multiprograma, este hilo continuará ejecuntandose todo el tiempo que quiera. Si utiliza todo el quantum del proceso, el núcleo seleccionará otro para ejecutarlo.
+
+Cuando el proceso A se vuelva a ejecutar, el hilo A1 va a continuar ejecutándose. Este continuará hasta que el tiempo de A se termine. Sin embargo, su comportamiento antisocial no afectará a otros procesos. Ellos obtendrán lo que el planificador considere que le corresponde, sin importar lo que ocurra en el proceso A. 
+
+Ahora consideremos el caso de que los hilos del proceso A tienen relativamente poco trabajo que hacer por ráfaga de CPU, por ejemplo 5 msec de trabajo dentro de un quantum de 50msec. En consecuencia, cada uno se ejecuta durante un rato, y luego cede a la CPU de nuevo al programador de hilos.
+
+Esto puede llevar a la secuencia A1, A2, A3, A1, A2, A3, A1, A2, A3, A1 antes de que el kernel cambie al proceso B. Esto se evidencia en la figura 2-44(a)
+
+![imagen2.44](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-44.png?raw=true)
+
+El algoritmo de planificación usado por el sistema en tiempo de ejecución puede ser cualquiera de los escritos anteriormente. En la práctica, los algoritmos más comunes de planificación son la planificación round-robin y la planificación con prioridades. La única restricción es la ausencia de un reloj para interrumpir a un hilo que se ha ejecutado demasiado tiempo. Dado que los hilos cooperan, esto no suele ser un problema. 
+
+Consideremos ahora la situación con threads a nivel del kernel. En este caso, el núcleo elige un hilo concreto para ejecutarlo. No tiene que tener en cuenta a qué proceso le pertenece el hilo, pero puede hacerlo si quiere. Al hilo se le da un quantum y se suspende forzosamente si excede el quantum. Con un quantum de 50 mseg pero con hilos que se bloquean cada 5msec, el orden de los hilos durante algún periodo de 30 mseg podría ser A1, B1, A2, B2, A3, B3, algo imposible con estos parámetros y los hilos a nivel de usuario. Esta situación se presenta parcialmente en la fig 2-44(b)
+
+Una diferencia importane entre los hilos a nivel de usuario y los hilos a nivel de kernel es el rendimiento. Hacer un cambio de hilos con hilos a nivel de usuario, requiere un puñado de instrucciones de máquina. Con los hilos a nivel de kernel se requiere un cambio de contexto completo, cambiando el mapa de memoria e invalidando la caché, lo que son varias ordenes de magnitud más lenta. Por otro lado, con los hilos a nivel del kernel, tener un hilo bloqueado en I/O no suspende todo el proceso como ocurre con los hilos a nivel de usuario.
+
+Como el núclo sabe que pasar un hilo en el proceso A a un hilo en el proceso B es más caro que ejecutar un segundo hilo en el proceso A(debido a que tener que cambiar el mapa de memoria y se estropea la memoria cache), puede tener en cuenta esta información a la hora de tomar una decisión. Por ejemplo, dado 2 hilos de igual importancia, uno de ellos pertenece al mismo proceso que un hilo que acaba de bloquearse y otro perteneciente a un hilo diferente, se podría dar preferencia al primero.
+
+Otro factor importante es que los hilos a nivel de usuario pueden enplear un planificador de hilos especifícos de la aplicación. Consideremos, el servidor de la figura 2-8. Supongamos que un hilo trabajadora caba de bloquearse y que el hilo despachador y 2 hilos trabajadores están listos. ¿Quién debe ser el siguiente en ejcutarse? El sistema en tiempo de ejecución, sabiendo lo que hacen todos los hilos, puede elegir fácilmente el despachador para que se ejecute a continuación, de modo que pueda iniciar otro trabajador en ejecución. Esta estrategia maximiza la cantidad de paralelismo en un entorno en el que los trabajadores se bloquean frecuentemente en I/O de disco. Con hilos a nivel de núcleo, el núcleo nunca sabría lo que hace cada hilo(aunque se les podría asignar distintas prioridades). En general, los planificadores de hilos específicos de la aplicación pueden ajustar una aplicación mejor que el núclo.
+
+## 2.5 CLASSICAL IPC PROBLEMS
+
+La literatura de los sistemas operativos está llena de problemas interesantes que han sido discutidos y analizados por una variedad de métodos de sincronización. El las siguientes secciones vamos a examinar 3 de los problemas más conocidos.
+
+### 2.5.1 The Dining Philosophers Problem
+
+En 1965 Dijsktra propuso y resolvió un problema de sincronización llamado **dining philosophers problem**.
+
+Desde ese entonces, todos los que inventan otra primitiva de sincronización se han sentido obligados a demostrar lo maravillosa que es la nueva primitiva mostrando elegantemente que resuelve el problema de los filósofos del comedor.
+
+El problema puede plantearse de la siguiente manera. Cinco filósofos estáns sentados alrededor de una mesa circular. Cada filósofo tiene un plato de espaguetis. Los espaguetis son tan resbaladizos que un filósofo necesita 2 tenedores para comerlos. Entra cada par de platos hay un tenedor. La disposición de la mesa se encuentra en la figura 2-45
+
+![imagen2.45](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-45.png?raw=true)
+
+La vida de un filósofo consiste en alternar periodos de comer y de pensar. (Se trata de una abstracción, incluso para los filósofos, pero las demás actividades son irrelevantes aquí). Cuando un filósofo tiene suficiente hambre, intenta coger 2 tenedores izquierdo y derecho, uno cada vez, en cualquier orden. Si consigue 2 tenedores, come un rato, deja los tenedores y sigue pensando. La pregunta es: ¿Puede escribir un programa que para cada filósofo que haga lo que se supone que tiene que hacer y que nunca se atasque? (Se ha señalado que el requisito de los 2 tenedores es algo artificial).
+
+La Figura 2-46 muestra la solución obvia. El procedimiento take fork espera hasta que el fork especificado esté disponible y entonces lo toma. Desafortunadamente, la solución obvia es errónea. Supongamos que los cinco filósofos toman sus tenedores izquierdos simultáneamente. Ninguno podrá coger el tenedor derecho y se producirá un bloqueo.
+
+![imagen2.46](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-46.png?raw=true)
+
+Podríamos modificar fácilmente el programa para que después de tomar el tenedor izquierdo, el programa comprueba si el tenedor dereco está disponible. Si no lo está, el filósofo deja el tenedor izquierdo, espera un rato y repite el proceso. Esta propuesta también fracasa, aunque por un motivo diferente. Los filósofos podrían iniciar el algoritmo simultáneamente, cogiendo sus tenedores izquierdos, esperando, volviendo a coger sus tenedores izquierdos simultáneamente y así sucesivamente, para siempre. Una situación como esta, en la que todos los programas siguen ejecutándose indefinidamente pero no avanzan se denomina **starvation**.
+
+Ahora se podría pensar que si los filósofos esperasen un tiempo al azar en lugar del mismo tiempo después de fracasar su intento de adquirir el tenedor derecho, la probabilidad de que todo continuase al mismo ritmo incluso durante una hora es muy pequeña. Esta observación es cierta, y en casi todas las aplicaciones volver a intentarlo más tarde no supone un problema. Por ejemplo, en la popular red de área local Ethernet, si 2 ordenadores envían un paquete al mismo tiempo, cada uno espera un tiempo aleatorio y vuelve a intentarlo, en la práctica, esta solución funciona bien. Sin embargo, en algunas aplicaciones uno preferiría una solución que siempre funcione y no pueda fallar debido a una serie improbable de números aleatorios. Pensemos en el control de seguridad de una central nuclear.
+
+Una mejora a la figura 2-46 que no tiene bloqueo ni inanición es proteger las cinco sentencias que siguen a la llamada a think mediante un semáforo binario. Antes de empezar a adquirir forks, un filósof haría down en mutex. Después de tomar los tenedores, este levantaría el mutex. De un punto de vista teórico, esta solución es adecuada. Desde un punto de vista práctico, este tiene tiene un fallo de rendimiento, solo un filósofo puede estar comiendo en cualquier instante. Con cinco tenedores disponibles, deberíamos poder permitir que 2 filósofos comieran al mismo tiempo.
+
+La solución presentada en la figura 2-47, está libre de deadlock y permite el paralelismo máximo para un número arbitrario de filósofos. Este usa un array *state* para llevar la cuenta de qué filósofos están comiendo, pensando o están hambrientos(tratando de adquirir cubiertos). Un filósofo puede moverse a comer solo cuando ningún vecino está comiendo. Los vecinos de un filósofo i están definidos con LEFT y RIGHT, en otras palabras, si i es 2, LEFT es 1 y RIGHT es 3.
+
+Este programa usa un array de semáforos, uno por filósofo, por lo que los filósofos hambrientos pueden bloquearse si los tenedores que necesitan están ocupados. Notemos que cada proceso ejecuta la función *philosopher* en el main code, pero las otras funciones, *take_forks*, *put_forks* y *test*, son funciones ordinarias y no procesos separados.
+
+![imagen2.47](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-47.png?raw=true)
+
+### 2.5.2 The Readers and Writers Problem
+
+El problema de los filósofos comensales es útil para modelar procesos que compiten por el acceso exclusivo a un número limitado de recursos, como los dispositivos I/O. Otro problema famoso es el problema de los lectores y escritores (Courtois et al., 1971), donde se modela el acceso a una base de datos. Imaginemos, por ejemplo, un sistema de reservación de una aerolínea, con muchos procesos compitiendo para poder escribir y leer en él. Es aceptable tener múltiples procesos leyendo la base de datos al mismo tiempo, pero si un proceso está actualizando(escribiendo) en la base de datos, ninún otro proceso debe poder acceder a la base de datos, ni siquiera los lectores. La pregunta es cómo programarías a los lectores y escritores? Una solución es mostrada en la figura 2-48. 
+
+![imagen2.48](https://github.com/gabo52/SistemasOperativos/blob/main/figures/Chapter2/figure2-48.png?raw=true)
+
+En esta solución, el primer lector obtiene el acceso a la base de datos y realiza un down en el semáforo *db*. Luego los lectores incrementarán el contador *rc*. Cuando los lectores salgan van a decrementar el contador, además el último que salga va a realizar un *up* en el semáforo, permitiendo al escritor bloqueado, si es que existe, tomar el semáforo *db*.
+
+La solución presente contiene implícitamente una decisión sutil digna de mención. Supongamos que mientras un lector está usando la base de datos, otro lector aparece. Dado que tener 2 lectores al mismo tiempo no es un problema, el segundo lector es admitido. Adicionalmente los lectores pueden ser admitidos si aparecen.
+
+Ahora supongamos que llega un escritor. El escritor no será admitido en la base de datos, dado que los escritores tienen acceso exclusivo, entonces el escritor se bloquea. Supongamos que luego llegan más lectores. Mientras haya al menos un lector activo, se aceptarán más lectores. Como consecuencia de esta estrategia, mientras lleguen lectores constantemente, estos serán aceptados cuando lleguen. El escritor se mantendrá bloqueado hasta que no haya ningún lector presente. Si un nuevo lector llega, digamos, cada 2 segundos y cada lector tarda 5 segundos en leer de la base de datos, el escritor nunca entrará.
+
+Para evitar esta situación, el programa puede escribirse ligeramente distinto: cuando un lector llega y el escritor está esperando, el lector se bloquea detrás del escritor en lugar de ser admitido inmediatamente. De esta forma, el escritor tiene que esperar a los lectores que están activos cuando llegó, pero no tiene que esperar a los lectores que llegaron después de él. La desventaja de esta solución es que se consigue menos concurrencia y por ende, menor rendimiento. Courtois et al. present a solution that gives priority to writers.
 
 ## APUNTES DE CLASE
 
