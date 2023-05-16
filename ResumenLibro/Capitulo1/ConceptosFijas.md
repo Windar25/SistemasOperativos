@@ -1,0 +1,83 @@
+# Cap1
+
+Conceptos que faltan analizar:
+
+- operating system
+- shell
+- GUI
+- kernel mode
+- user mode
+- I/O
+- architecture
+- SATA
+- disk driver
+- multiplexing
+- mainframes
+- ICs
+- OS/360
+- multiprogramming
+- spooling
+- timesharing
+- CTSS
+- MULTICS
+- cloud computing
+- UNIX
+- System V
+- BSD
+- POSIX
+- MINIX
+- Linux
+- LSI
+- microcomputers
+- CP/M
+- DOS
+- MS-DOS
+- FreeBSD
+- Gnome
+- network operating systems
+- distributed operating systems
+- program counter
+- stack pointer
+- PSW
+- pipeline
+- superscalar CPU
+- system call
+- multithreading
+- hyperthreading
+- GPU
+- cache lines
+- cache hit
+- L1 cache
+- L2 cache
+- core memory
+- RAM
+- ROM
+- EEPROM
+- flash memory
+- virtual memory
+- MMU
+- device driver
+- interrupt
+- shared bus architecture
+- parallel bus architecture
+- serial bus architecture
+- BIOS
+- hard real-time system
+- soft real-time system
+- address space
+- process table
+- core image
+- command interpreter
+- alarm signal
+- UID
+- GID
+- special file
+- block special files
+- character special files
+- partitions
+- Monolithic Systems
+- Layered Systems
+- Microkernels
+- reincarnation server
+- client-server mode
+- Exokernels
