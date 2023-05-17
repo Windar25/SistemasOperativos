@@ -1,86 +1,6 @@
 # Cap 2
-Conceptos que faltan analizar:
--   pseudoparallelism
--   multiprocessor
--   sequential processes
--   processes
--   multiprogramming
--   copy-on-write
--   handle
--   process table
--   process control blocks
--   interrupt vector
--   cache
--   dispatcher
--   worker thread
--   finite-state machine
--   thread
--   lightweight processes
--   multithreading
--   Pthreads
--   thread table
--   jacket or wrapper.
--   scheduler activations
--   upcall
--   pop-up thread
--   InterProcess Communication, or IPC.
--   spooler directory
--   race conditions
--   mutual exclusion
--   critical region
--   busy waiting
--   spin lock
--   priority inversion problem
--   bounded-buffer(para el producer consumer)
--   wakeup waiting bit
--   semaphore
--   atomic action
--   binary semaphores
--   synchronization
--   mutex
--   futex
--   condition variables
--   monitor
--   message passing
--   acknowledgement
--   Authentication
--   mailbox
--   rendezvous
--   MPI (Message-Passing Interface)
--   barrier
--   RCU (Read-Copy-Update)
--   read-side critical section
--   grace period
--   scheduler
--   scheduling algorithm
--   compute-bound
--   I/O-bound
--   nonpreemptive
--   preemptive
--   Throughput
--   Turnaround time
--   response time
--   proportionality
--   first-come, first-served
--   shortest job first
--   shortest remaining time next
--   round robin
--   quantum
--   process switch
--   priority scheduling
--   Multiple Queues
--   Shortest Process Next
+
 -   aging
--   lottery scheduling
--   real-time system
--   hard real time
--   soft real time
--   periodic
--   aperiodic
--   schedulable
--   scheduling mechanism
--   scheduling policy
--   starvation
 
 
 
@@ -94,9 +14,9 @@ Conceptos que faltan analizar:
 
 5. **Multiprogramming**: Es una técnica que permite a varios procesos residir en memoria al mismo tiempo, aumentando la utilización del CPU al permitir el cambio de contexto cuando un proceso no puede continuar.
 
-6. **Copy-on-write**: Es una técnica de optimización que retrasa la copia de un objeto hasta que es modificado. Es útil para ahorrar memoria en operaciones como la duplicación de procesos.
+6. **Copy-on-write**: Es una técnica de optimización que retrasa la copia de un objeto hasta que es modificado. Es útil para ahorrar memoria en operaciones como la duplicación de procesos.(Cuando usamos un fork)
 
-7. **Handle**: Es una referencia a un recurso que está gestionado por el sistema, como un archivo o un proceso. Los programas utilizan manejadores para interactuar con estos recursos.
+7. **Handle**: Es una referencia a un recurso que está gestionado por el sistema, como un archivo o un proceso. Los programas utilizan manejadores para interactuar con estos recursos. En el caso de windows el padre tiene un token especial llamado handle el cual se usa para controlar al hijo, pero de todas formas este token se puede pasar a otro proceso.
 
 8. **Process table**: Una tabla de procesos es una estructura de datos en el sistema operativo que guarda el estado de todos los procesos. Cada entrada contiene información como el ID del proceso, el estado, los recursos asignados y otros detalles del proceso.
 
@@ -108,25 +28,28 @@ Conceptos que faltan analizar:
 
 12. **Dispatcher**: Es la parte del sistema operativo que da control del CPU a los procesos. Es responsable de la conmutación de contexto, cambiando el proceso que se está ejecutando.
 
-13. **Worker thread**: En un modelo de programación multihilo, un hilo de trabajo es un hilo que se utiliza para realizar tareas en segundo plano o tareas que no requieren interacción con el usuario.
+13. **Worker thread**: En un modelo de programación multihilo, un hilo de trabajo es un hilo que se utiliza para realizar tareas en segundo plano o tareas que no requieren interacción con el usuario.(Es el hilo q)
 
 14. **Finite-state machine**: Es un modelo de computación que tiene un número finito de estados. Puede estar en exactamente un estado en un momento dado, y los cambios de estado se disparan por eventos o condiciones.
 
 15. **Thread**: Un hilo es la unidad más pequeña de procesamiento que puede ser gestionada por un sistema operativo. Los hilos dentro de un proceso comparten el espacio de direcciones y los recursos del proceso, pero pueden ejecutarse de forma independiente.
 
 16. **Lightweight processes**: Es una forma de concurrencia a nivel de usuario que se utiliza para
+mejorar la eficiencia en comparación con los procesos pesados. Los procesos ligeros son más eficientes porque tienen menos sobrecarga y pueden compartir recursos más fácilmente.(hilos)
 
- mejorar la eficiencia en comparación con los procesos pesados. Los procesos ligeros son más eficientes porque tienen menos sobrecarga y pueden compartir recursos más fácilmente.
+1.  **Multithreading**: Es una técnica que permite la ejecución concurrente de varias partes de un programa para mejorar la eficiencia y el rendimiento.
 
-17. **Multithreading**: Es una técnica que permite la ejecución concurrente de varias partes de un programa para mejorar la eficiencia y el rendimiento.
+2.  **Pthreads**: Es una biblioteca en el lenguaje C que permite la programación multihilo. Proporciona funciones para crear y gestionar hilos, así como para la sincronización y la comunicación entre hilos.
 
-18. **Pthreads**: Es una biblioteca en el lenguaje C que permite la programación multihilo. Proporciona funciones para crear y gestionar hilos, así como para la sincronización y la comunicación entre hilos.
+3.  **Thread table**: Es una estructura de datos que mantiene un seguimiento de todos los hilos en un proceso o en todo el sistema. Cada entrada en la tabla contiene información sobre un hilo, como su estado, su ID y la información de su contexto.
 
-19. **Thread table**: Es una estructura de datos que mantiene un seguimiento de todos los hilos en un proceso o en todo el sistema. Cada entrada en la tabla contiene información sobre un hilo, como su estado, su ID y la información de su contexto.
+4.  **Jacket or wrapper**: En el contexto de los sistemas operativos, una chaqueta o envoltorio es una función o rutina que proporciona una interfaz uniforme para una operación subyacente que puede variar entre sistemas o entornos. Por ejemplo, un envoltorio puede proporcionar una interfaz de sistema de archivos uniforme que puede utilizarse con varios sistemas de archivos subyacentes.
+El código que se coloca alrededor de la llamada al sistema para realizar la comprobación(ejemplo del read) se denomina cubierta o envoltura.
 
-20. **Jacket or wrapper**: En el contexto de los sistemas operativos, una chaqueta o envoltorio es una función o rutina que proporciona una interfaz uniforme para una operación subyacente que puede variar entre sistemas o entornos. Por ejemplo, un envoltorio puede proporcionar una interfaz de sistema de archivos uniforme que puede utilizarse con varios sistemas de archivos subyacentes.
 
-21. **Scheduler activations**: Es un mecanismo que permite al núcleo del sistema operativo y a la biblioteca de hilos a nivel de usuario cooperar en la programación de hilos. Esto permite una programación más eficiente y un mejor rendimiento en sistemas multihilo.
+21. **Scheduler activations**: Es un mecanismo que permite al núcleo del sistema operativo y a la biblioteca de hilos a nivel de usuario cooperar en la programación de hilos. Esto permite una programación más eficiente y un mejor rendimiento en sistemas multihilo. 
+
+Cuando se utilizan Scheduler activations, el núcleo asigna un determinado número de procesadores virtuales a cada proceso y deja que el sistema de ejecución (espacio de usuario) asigne hilos a los procesadores. Este mecanismo también puede utilizarse en un multiprocesador en el que los procesadores virtuales pueden ser CPU reales. El número de procesadores virtuales asignados a un proceso es inicialmente uno, pero el proceso puede pedir más y también puede devolver los procesadores que ya no necesita.
 
 22. **Upcall**: Es una técnica de comunicación entre el núcleo del sistema operativo y el espacio de usuario. Un upcall es una llamada de procedimiento desde el núcleo a una función específica en el espacio de usuario.
 
@@ -142,17 +65,17 @@ Conceptos que faltan analizar:
 
 28. **Critical region**: Es una sección de código que accede a recursos compartidos y que debe ejecutarse de manera atómica para prevenir condiciones de carrera. La exclusión mutua se utiliza para proteger las regiones críticas.
 
-29. **Busy waiting**: Es una técnica en la que un proceso en un sistema multiprocesador verifica continuamente una condición en lugar de proceder de inmediato. Esto se considera ineficiente ya
-
- que el proceso consume tiempo de CPU que podría utilizarse para otros procesos.
+29. **Busy waiting**: Es una técnica en la que un proceso en un sistema multiprocesador verifica continuamente una condición en lugar de proceder de inmediato. Esto se considera ineficiente ya que el proceso consume tiempo de CPU que podría utilizarse para otros procesos.
 
 30. **Spin lock**: Es un tipo de bloqueo que utiliza la espera ocupada. Cuando un proceso no puede adquirir un bloqueo de giro, sigue intentándolo hasta que tiene éxito, en lugar de cambiar a otro trabajo.
 
 31. **Priority inversion problem**: Es un escenario en el que un proceso de alta prioridad se ve obligado a esperar a un proceso de baja prioridad debido al uso de un recurso compartido. Esto puede llevar a problemas de rendimiento y a la violación de los plazos de tiempo real.
 
-32. **Bounded-buffer**: Es una región de memoria utilizada para el intercambio de datos entre procesos. El buffer tiene un tamaño fijo y se utiliza un mecanismo de sincronización para garantizar que los datos no se sobrescriban o se consuman antes de que estén listos.
+32. **Bounded-buffer**: Es una región de memoria utilizada para el intercambio de datos entre procesos. El buffer tiene un tamaño fijo y se utiliza un mecanismo de sincronización para garantizar que los datos no se sobrescriban o se consuman antes de que estén listos.(como para el problema del productor-consumidor)
 
 33. **Wakeup waiting bit**: Es una técnica utilizada en algunos sistemas operativos para evitar la espera ocupada. Cuando un proceso no puede continuar, establece un bit de espera y se pone en un estado de espera, liberando así el CPU para otros procesos.
+    
+Esto es para casos análogos al siguiente: un proceso manda una señal wake a otro proceso, sin embargo este proceso no se encontraba dormido, por lo que la señal se pierde, en consecuencia, cuando este vaya a dormir dormirá para siempre. Con el wakeup waiting bit, si el proceso recibe la señal y estaba despierto, la señal se "guarda" en el bit para despertarse cuando vaya a dormir.
 
 34. **Semaphore**: Es una variable especial utilizada para la sincronización entre procesos. Los semáforos pueden utilizarse para proteger una región crítica, para coordinar la cooperación entre procesos, o para evitar condiciones de carrera.
 
@@ -165,6 +88,7 @@ Conceptos que faltan analizar:
 38. **Mutex**: Es un objeto de sincronización que permite la exclusión mutua. Solo un hilo puede poseer un mutex a la vez, y cualquier otro hilo que intente adquirir el mutex será bloqueado hasta que el hilo propietario lo libere.
 
 39. **Futex**: Es un mecanismo de sincronización en el kernel de Linux que proporciona bloqueos rápidos en el espacio de usuario cuando no hay contención, y se degrada a bloqueos en el espacio del kernel cuando hay contención.
+Si no se trata de cerrar un futex cerrado, no se realiza la llamada al kernel, esta llamada solo se da para encolar o desencolar procesos de la cola de espera de procesos.
 
 40. **Condition variables**: Son objetos de sincronización utilizados para bloquear un hilo hasta que se cumpla una determinada condición. Se utilizan en combinación con mutex para sincronizar la ejecución de varios hilos.
 
@@ -172,9 +96,7 @@ Conceptos que faltan analizar:
 
 42. **Message passing**: Es un mecanismo de comunicación entre procesos que permite el intercambio de datos y señales a través de mensajes. El paso de mensajes puede ser síncrono o asíncrono.
 
-43. **Acknowledgement**: En los sistemas de comunicación, un reconocimiento es una señal enviada por el receptor para indicar que un mensaje o
-
- un paquete de datos ha sido recibido correctamente.
+43. **Acknowledgement**: En los sistemas de comunicación, un reconocimiento es una señal enviada por el receptor para indicar que un mensaje o un paquete de datos ha sido recibido correctamente.
 
 44. **Authentication**: Es el proceso de verificar la identidad de un usuario, proceso o dispositivo. La autenticación es crucial para la seguridad de los sistemas informáticos.
 
@@ -196,19 +118,17 @@ Conceptos que faltan analizar:
 
 53. **Scheduling algorithm**: Es el algoritmo utilizado por el programador para decidir qué proceso debe ejecutarse en el CPU. Los algoritmos de programación pueden basarse en la prioridad, el tiempo de CPU utilizado, el tiempo de espera, la llegada de trabajos, entre otros factores.
 
-54. **Compute-bound**: Se refiere a los procesos o sistemas que están limitados por la velocidad de la CPU. Estos procesos pasan la mayor parte de su tiempo realizando cálculos en lugar de esperar a las operaciones de E/S.
+54. **Compute-bound**: Se refiere a los procesos o sistemas que están limitados por la velocidad de la CPU. Estos procesos pasan la mayor parte de su tiempo realizando cálculos en lugar de esperar a las operaciones de I/O.
 
-55. **I/O-bound**: Se refiere a los procesos o sistemas que están limitados por la velocidad de las operaciones de entrada/salida. Estos procesos pasan la mayor parte de su tiempo esperando a las operaciones de E/S en lugar de realizar cálculos.
+55. **I/O-bound**: Se refiere a los procesos o sistemas que están limitados por la velocidad de las operaciones de entrada/salida. Estos procesos pasan la mayor parte de su tiempo esperando a las operaciones de I/O en lugar de realizar cálculos.
 
-56. **Nonpreemptive**: En la programación no preventiva, una vez que un proceso ha sido asignado al CPU, continúa ejecutándose hasta que se completa o hasta que se bloquea por una operación de E/S.
+56. **Nonpreemptive**: En la programación no preventiva, una vez que un proceso ha sido asignado al CPU, continúa ejecutándose hasta que se completa o hasta que se bloquea por una operación de I/O.
 
-57. **Preemptive**: En la programación preventiva, el sistema operativo puede interrumpir un proceso en ejecución y reasignar el CPU a otro proceso. Esto
-
- se hace para asegurar un reparto equitativo del CPU entre los procesos y para mejorar la respuesta y la utilización del sistema.
+57. **Preemptive**: En la programación preventiva, el sistema operativo puede interrumpir un proceso en ejecución y reasignar el CPU a otro proceso. Esto se hace para asegurar un reparto equitativo del CPU entre los procesos y para mejorar la respuesta y la utilización del sistema.
 
 58. **Throughput**: Se refiere a la cantidad de trabajo que un sistema puede procesar en un período de tiempo dado. En el contexto de los sistemas operativos, esto podría referirse a la cantidad de procesos que pueden completarse en un período de tiempo.
 
-59. **Turnaround time**: Es el tiempo total que tarda un proceso desde que se envía hasta que se completa. Incluye el tiempo que el proceso pasa en la cola de espera, en la CPU y realizando operaciones de E/S.
+59. **Turnaround time**: Es el tiempo total que tarda un proceso desde que se envía hasta que se completa. Incluye el tiempo que el proceso pasa en la cola de espera, en la CPU y realizando operaciones de I/O.
 
 60. **Response time**: Es el tiempo que transcurre desde que se envía una solicitud hasta que se recibe la primera respuesta. En el contexto de los sistemas operativos, esto podría referirse al tiempo que tarda un proceso en comenzar a ejecutarse después de que ha sido programado.
 
@@ -230,11 +150,11 @@ Conceptos que faltan analizar:
 
 69. **Multiple Queues**: Es una técnica de programación en la que los procesos se dividen en varias colas, cada una con su propio algoritmo de programación. Esto puede utilizarse para dar prioridad a ciertos tipos de procesos o para gestionar diferentes clases de servicio.
 
-70. **Shortest Process Next**: Es un algoritmo de programación que selecciona para ejecución el proceso con el menor tiempo de servicio estimado aún
+70. **Shortest Process Next**: Es un algoritmo de programación que selecciona para ejecución el proceso con el menor tiempo de servicio estimado aún por cumplir. Este algoritmo es óptimo para minimizar el tiempo de espera de los procesos, pero puede ser difícil de implementar en la práctica debido a la dificultad de estimar el tiempo de servicio de un proceso.
 
- por cumplir. Este algoritmo es óptimo para minimizar el tiempo de espera de los procesos, pero puede ser difícil de implementar en la práctica debido a la dificultad de estimar el tiempo de servicio de un proceso.
+71. **Aging**: Es una técnica utilizada para prevenir la inanición en los sistemas de programación por prioridades. La técnica implica incrementar gradualmente la prioridad de los procesos que han estado esperando durante mucho tiempo.  
 
-71. **Aging**: Es una técnica utilizada para prevenir la inanición en los sistemas de programación por prioridades. La técnica implica incrementar gradualmente la prioridad de los procesos que han estado esperando durante mucho tiempo.
+La técnica de estimar el siguiente valor de una serie tomando la media ponderada del valor medido actual y la estimación anterior se denomina a veces *aging*. Es aplicable a muchas situaciones en las que debe hacerse una predicción basada en valores anteriores. El *aging* es especialmente fácil de aplicar cuando a = 1/2. Basta con sumar el nuevo valor a la estimación actual y dividir la suma por 2 (desplazándola 1 bit a la derecha).
 
 72. **Lottery scheduling**: Es un algoritmo de programación que asigna a los procesos "billetes de lotería" y luego selecciona aleatoriamente un "billete" para decidir qué proceso debe ejecutarse a continuación. Esto permite un equilibrio flexible del tiempo de CPU entre los procesos.
 
@@ -252,6 +172,8 @@ Conceptos que faltan analizar:
 
 79. **Scheduling mechanism**: Es la parte del sistema operativo que implementa el algoritmo de programación. El mecanismo de programación incluye las rutinas que seleccionan el próximo proceso a ejecutar, que realizan el cambio de proceso y que gestionan las colas de procesos.
 
-80. **Scheduling policy**: Es el conjunto de reglas y algoritmos que el sistema operativo utiliza para decidir qué proceso debe ejecutarse a continuación. Las políticas de programación pueden estar diseñadas para optimizar el rendimiento, el tiempo de respuesta, la utilización del sistema u otros factores.
+80. **Scheduling policy**: Es el conjunto de reglas y algoritmos que el sistema operativo utiliza para decidir qué proceso debe ejecutarse a continuación. Las políticas de programación pueden estar diseñadas para optimizar el rendimiento, el tiempo de respuesta, la utilización del sistema u otros factores. Con el scheduling policy, un proceso de usuario puede controlar las políticas de planificicación.
 
 81. **Starvation**: En el contexto de los sistemas operativos, la inanición se produce cuando un proceso no obtiene los recursos que necesita para progresar. La inanición puede producirse debido a la competencia por los recursos o a las políticas de programación.
+
+Una situación como ésta, en la que todos los programas siguen ejecutándose indefinidamente pero no logran ningún avance, se denomina **Starvation**.
