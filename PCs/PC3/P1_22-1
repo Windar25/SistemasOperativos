@@ -1,0 +1,68 @@
+for (int j=0; j<n; j++) {
+    for (int k=0; k<m; k++) {
+        if (blockSize[k] >= processSize[j]) {
+            allocation[j] = k;
+            blockSize[k] -= processSize[j];
+            break;
+        }
+    }
+}
+
+//busca un hueco por cada proceso con el algoritmo first fit
+
+Caso 1:
+Block       No. Block Initial Size
+1                   200
+2                   1000
+3                   300
+4                   500
+Process     No. Process Size    Block no.
+1               500                 2
+2               80                  1
+3               245                 2
+4               480                 4
+5               170                 2
+6               120                 1
+7               150                 3
+
+Block          No. Block Final Size
+1                   0
+2                   85
+3                   150
+4                   20
+
+Caso 2:
+Block       No. Block Initial Size
+1                   100
+2                   500
+3                   200
+4                   300
+5                   600
+
+Process     No. Process Size    Block no.
+1                   321             2
+2                   488             5
+3                   143             2
+4                   452             no entra
+
+Block No.   Block Final Size
+1                   100
+2                   36
+3                   200
+4                   300
+5                   112
+
+Caso 3:
+Block       No. Block Initial Size
+1                    125
+2                    200
+3                    400
+Process      No. Process Size          Block no.
+1                    300                3
+2                    25                 1
+3                    125                2
+4                    50                 1
+Block           No. Block Final Size
+1                    50
+2                    75
+3                    100
