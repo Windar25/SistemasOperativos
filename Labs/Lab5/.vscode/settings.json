@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "types.h": "c",
+        "structfat.h": "c",
+        "structfat16.h": "c"
+    },
+    "C_Cpp.errorSquiggles": "disabled"
+}
