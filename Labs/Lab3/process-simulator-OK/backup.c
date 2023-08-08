@@ -59,7 +59,6 @@ struct Proc
   int state;
   int t_start;
   int t_used;
-  int t_from_start;
   char fname[MAX_STR]; // Filename to read a program
   char prog[MAX_LINE][MAX_STR]; // Programs for simulated processes.
 };
@@ -236,7 +235,6 @@ struct Proc create_proc(int pid, int ppid, int priority, int pc, int value,
   proc.value = value;
   proc.t_start = t_start;
   proc.t_used = t_used;
-  proc.t_from_start=0;
   strcpy(proc.fname, fname);  
   readProgram(proc.fname, proc.prog);
   return proc;
@@ -253,7 +251,6 @@ struct Proc dup_proc(struct Proc *pp, int new_pid,
   cp.value = pp->value;
   cp.t_start = current_time;
   cp.t_used = 0;
-  cp.t_from_start=0;
   strcpy(cp.fname, pp->fname);
   printf("New pid %d\n",new_pid);
   readProgram(cp.fname, cp.prog);
@@ -263,18 +260,17 @@ struct Proc dup_proc(struct Proc *pp, int new_pid,
 /* Show the status of a give queue. */
 void show(QUE *n, struct Proc pcbTable[]){
   struct Proc proc;
-  int t_used;
+  
   if (n == NULL){
     printf("queue is empty\n");
     return ;
   }
   while (n != NULL){
     proc = pcbTable[n->pid];
-    t_used=quantum[proc.priority] - proc.t_used;
-    printf("pc, pid, ppid, priority, value, start time, time used, CPU time used so far\n");
-    printf("%2d, %3d,  %3d, %8d, %5d, %10d, %13d, %4d\n",
+    printf("pc, pid, ppid, priority, value, start time, CPU time used so far\n");
+    printf("%2d, %3d,  %3d, %8d, %5d, %10d, %3d\n",
 	   proc.pc, proc.pid, proc.ppid, proc.priority,
-	   proc.value, proc.t_start,proc.t_used, proc.t_from_start);
+	   proc.value, proc.t_start, proc.t_used);
     n = n->next;
   }
   printf("\n");
@@ -284,14 +280,13 @@ void show(QUE *n, struct Proc pcbTable[]){
 /* Show the status of a give queue by priority. */
 void show_by_priority(QUE *n, struct Proc pcbTable[], int priority){
   struct Proc proc;
-  int count = 0,t_used;
+  int count = 0;
   
   while (n != NULL){
     if(pcbTable[n->pid].priority == priority){
       proc = pcbTable[n->pid];
-      t_used=quantum[priority] - proc.t_used;
-      printf("pc, pid, ppid, priority, value, start time, CPU time used, CPU time used so far\n");
-      printf("%2d, %3d,  %3d, %8d, %5d, %10d, %13d, %18d\n",proc.pc, proc.pid, proc.ppid, proc.priority,proc.value, proc.t_start, proc.t_used,proc.t_from_start);
+      printf("pc, pid, ppid, priority, value, start time, CPU time used so far\n");
+      printf("%2d, %3d,  %3d, %8d, %5d, %10d, %3d\n",proc.pc, proc.pid, proc.ppid, proc.priority,proc.value, proc.t_start, proc.t_used);
       count++;
     }
     n = n->next;
@@ -310,7 +305,7 @@ void cpu2proc(struct Cpu *cpu, struct Proc *proc){
   proc->pc = cpu->pc;
   proc->pid = cpu->pid;
   proc->value = cpu->value;
-  proc->t_used = cpu->t_slice - cpu->t_remain;
+  proc->t_used = cpu->t_remain;
   return;
 }
 
@@ -605,19 +600,21 @@ void quantumExpired(struct Proc *pcbTable,struct Cpu *cpu,QUE **ready_states,QUE
   printf("Quantum was expired, so assign the first process in the que to CPU.\n");
   set_next_priority(&pcbTable[cpu->pid]);
   printf("Pid(%d)'s priority class was raised to %d.\n",cpu->pid, pcbTable[cpu->pid].priority);
-  int pid_cpu=cpu->pid,temp_pid,temp_ready;
+  int pid_cpu=cpu->pid;
   cpu2proc(cpu, &pcbTable[cpu->pid]);
-  temp_pid = dequeue(running_states);	
+  int temp_pid = dequeue(running_states);	
 
-  temp_ready=dequeue(ready_states);
-  pcbTable[temp_ready].t_used=0;
-  proc2cpu(&pcbTable[temp_ready], cpu);
-  
+
+  proc2cpu(&pcbTable[dequeue(ready_states)], cpu);
   enqueue(running_states, cpu->pid,pcbTable);
 
 
   enqueue(ready_states, pid_cpu,pcbTable);
+  //printf("encolé otro proceso en ready\n");
 
+  
+  
+  
   printf("Swithed: cpu(%d) <--> pid(%d)\n", temp_pid, cpu->pid);	
 }
 
@@ -665,8 +662,8 @@ int endOfUnitOfTime(int *wait4unblocking,struct Proc *pcbTable,struct Cpu *cpu,c
   searchprog(pcbTable,cpu,err_flg,cmd);
   (*current_time)++;
   (cpu->pc)++;
-  if(cpu->t_remain!=0)(cpu->t_remain)--;
-  pcbTable[cpu->pid].t_from_start++;
+  (cpu->t_remain)--;
+
   if(processInstructions(*cmd,cpu,ready_states,blocked_states,running_states,pcbTable,ta,current_time,pid_count))return 1;
 
   return 0;
@@ -814,7 +811,8 @@ void processManagerProcess(int rfd, char *init_program)
   
   /* Initializing */
   initialize(&pid_count,&current_time,&cpu,&ta,pcbTable,init_program);
-
+  //pcbTable[cpu.pid] = create_proc((pid_count)++, -1, CLASS_0, cpu.pc, cpu.value,current_time, quantum[CLASS_0]-current_time,init_program);
+  //printf("pid count: %d current_time: %d",pid_count,current_time);
   ready_states = NULL;
   blocked_states = NULL;
   running_states = NULL;
@@ -827,10 +825,11 @@ void processManagerProcess(int rfd, char *init_program)
     
     printf("Command = %s",buffer);
     if(!strcmp(buffer, "Q\n") || !strcmp(buffer, "q\n")){
-
+      printf("enter to Q\n");
       if(endOfUnitOfTime(&wait4unblocking,pcbTable,&cpu,&cmd,&err_flg,&ready_states,&blocked_states,&running_states,&ta,&current_time,&pid_count))continue;
-      
       /*** Do scheduling ***/
+      printf("go to scheduling\n");
+      //COMPLETAR
       if(doScheduling(&ready_states,&running_states,&blocked_states,&wait4unblocking,fd,&err_flg,&cpu,&cmd,pcbTable,&current_time,&ta))return;     
     } else if(!strcmp(buffer, "U\n") || !strcmp(buffer, "u\n")){
       unblockProcess(&blocked_states,&ready_states,&wait4unblocking,pcbTable);
