@@ -6,8 +6,4 @@ clean:
 	rm -f ProcessSimulator main.o
 run:
 	make
-<<<<<<< HEAD
-	./ProcessSimulator init.prog
-=======
 	./ProcessSimulator mypriority.prog
->>>>>>> 280c3e0 (update L3)

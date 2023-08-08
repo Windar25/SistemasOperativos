@@ -108,24 +108,11 @@ QUE *enqueue(QUE **p, int pid,struct Proc *pcTable)
   printf("LLegue sin revisar pid\n");
   QUE *tail = *p;
   printf("LLegue");
->>>>>>> 280c3e0 (update L3)
   if(*p == NULL) // For initial setup
     return insert_head(p, pid);
 
   while(tail->next != NULL) //tail refers to a tail node
     tail = tail->next;
-<<<<<<< HEAD
-
-  QUE *n = (QUE *) malloc(sizeof(QUE));
-  if (n == NULL)
-    return NULL;
-
-  n->next = tail->next;
-  tail->next = n;
-  n->pid = pid;
-
-  return n;
-=======
   
   QUE *n = (QUE *) malloc(sizeof(QUE));
   if (n == NULL)
@@ -156,7 +143,6 @@ QUE *enqueue(QUE **p, int pid,struct Proc *pcTable)
   tail->next = n;
 
   return *p;
->>>>>>> 280c3e0 (update L3)
 }
 
 /* Dequeue from a head */
@@ -730,7 +716,6 @@ int main(int argc, char *argv[]){
     close(fd[1]);
     processManagerProcess(fd[0], fname);
   }
-
   return rv;
 }
 
